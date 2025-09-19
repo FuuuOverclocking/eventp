@@ -1,21 +1,15 @@
-#![feature(thin_box)]
-
-mod subscriber;
-
-use std::boxed::ThinBox;
+use std::cell::Cell;
 use std::collections::HashMap;
-use std::mem::{self, MaybeUninit, transmute};
-use std::os::fd::{AsRawFd, RawFd};
+use std::mem::{self, MaybeUninit};
+use std::os::fd::{AsFd, AsRawFd, RawFd};
 use std::{io, ptr};
 
+use nix::libc;
 use nix::sys::epoll::{Epoll, EpollCreateFlags, EpollEvent, EpollFlags, EpollTimeout};
 
-use crate::subscriber::Subscriber;
-
-const DEFAULT_CAPACITY: usize = 256;
-
-pub struct EventP {
-    registered: HashMap<RawFd, ThinBox<dyn Subscriber>>,
+pub struct Eventp<S> {
+    // Drop order: `registered` firstly, then `epoll`.
+    registered: HashMap<RawFd, Box<S>>,
     epoll: Epoll,
     buf: Vec<MaybeUninit<EpollEvent>>,
     handling: Option<Handling>,
@@ -26,36 +20,33 @@ struct Handling {
     to_remove: Vec<RawFd>,
 }
 
-impl EventP {
-    pub fn new(capacity: usize, flags: EpollCreateFlags) -> io::Result<Self> {
-        let mut buf = Vec::with_capacity(capacity);
-        unsafe { buf.set_len(capacity) };
+impl<S> Eventp<S> {
+    pub fn new() -> io::Result<Self> {
+        Self::with_flags(EpollCreateFlags::EPOLL_CLOEXEC)
+    }
 
+    pub fn with_flags(flags: EpollCreateFlags) -> io::Result<Self> {
         Ok(Self {
             epoll: Epoll::new(flags).map_err(io::Error::from)?,
             registered: Default::default(),
-            buf,
+            buf: vec![MaybeUninit::uninit(); 256],
             handling: None,
         })
     }
 }
 
-impl Default for EventP {
-    fn default() -> Self {
-        Self::new(DEFAULT_CAPACITY, EpollCreateFlags::EPOLL_CLOEXEC)
-            .expect("Failed to create epoll instance")
-    }
-}
-
-impl EventP {
-    pub fn add(&mut self, subscriber: ThinBox<dyn Subscriber>) -> io::Result<()> {
-        let raw_fd = subscriber.as_fd().as_raw_fd();
+impl<S> Eventp<S>
+where
+    S: Subscriber<S>,
+{
+    pub fn add(&mut self, mut subscriber: Box<S>) -> io::Result<()> {
+        let raw_fd = subscriber.fd().as_fd().as_raw_fd();
         let interests = subscriber.interests().get();
 
-        let addr = unsafe { mem::transmute_copy::<_, usize>(&subscriber) };
+        let addr = subscriber.as_mut() as *mut S;
         let epoll_event = EpollEvent::new(interests, addr as u64);
 
-        self.epoll.add(subscriber.as_fd(), epoll_event)?;
+        self.epoll.add(subscriber.fd(), epoll_event)?;
         self.registered.insert(raw_fd, subscriber);
 
         Ok(())
@@ -64,12 +55,12 @@ impl EventP {
     pub fn modify(&mut self, fd: RawFd, interests: EpollFlags) -> io::Result<()> {
         let subscriber = self
             .registered
-            .get(&fd)
+            .get_mut(&fd)
             .ok_or(io::Error::new(io::ErrorKind::NotFound, "fd not registered"))?;
-        let addr = unsafe { mem::transmute_copy::<_, usize>(subscriber) };
+        let addr = subscriber.as_mut() as *mut S;
         let mut epoll_event = EpollEvent::new(interests, addr as u64);
 
-        self.epoll.modify(subscriber.as_fd(), &mut epoll_event)?;
+        self.epoll.modify(subscriber.fd(), &mut epoll_event)?;
         subscriber.interests().set(interests);
 
         Ok(())
@@ -102,7 +93,7 @@ impl EventP {
 
     pub fn run_with_timeout(&mut self, timeout: EpollTimeout) -> io::Result<()> {
         if self.handling.is_some() {
-            panic!("Recursive call to EventP::run_with_timeout");
+            panic!("Recursive call to run().");
         }
 
         // Use `BorrowedBuf` instead, once it becomes stable.
@@ -117,21 +108,89 @@ impl EventP {
             to_remove: vec![],
         });
         for ev in buf {
-            let addr = ev.data() as usize;
-            let mut subscriber = unsafe { transmute::<_, ThinBox<dyn Subscriber>>(addr) };
+            let addr = ev.data() as *mut S;
+            let subscriber = unsafe { &mut *addr };
             unsafe {
-                self.handling.as_mut().unwrap_unchecked().fd = subscriber.as_fd().as_raw_fd();
+                self.handling.as_mut().unwrap_unchecked().fd = subscriber.fd().as_fd().as_raw_fd();
             }
 
             subscriber.handle(self, ev.events());
-            mem::forget(subscriber);
         }
         let handling = unsafe { self.handling.take().unwrap_unchecked() };
-
         for fd in handling.to_remove {
             self.registered.remove(&fd);
         }
 
         Ok(())
+    }
+}
+
+pub trait Subscriber<S>: WithFd + WithInterests + Handler<S> {}
+
+pub trait WithFd {
+    fn fd(&self) -> impl AsFd;
+}
+
+pub trait WithInterests {
+    fn interests(&self) -> &Cell<EpollFlags>;
+}
+
+pub trait Handler<S> {
+    fn handle(&mut self, eventp: &mut Eventp<S>, events: EpollFlags);
+}
+
+/*
+eventp.add(lt::read(server, handle));
+
+fn handle(
+server: &mut Server,
+readable
+writable
+read_closed
+write_closed
+error
+remove
+modify
+add
+remove_self
+)
+*/
+
+struct MySubscriber<D, F> {
+    data: D,
+    interests: Cell<EpollFlags>,
+    handle: F,
+}
+
+impl<D: WithFd, F> WithFd for MySubscriber<D, F> {
+    fn fd(&self) -> impl AsFd {
+        self.data.fd()
+    }
+}
+
+impl<D, F> WithInterests for MySubscriber<D, F> {
+    fn interests(&self) -> &Cell<EpollFlags> {
+        &self.interests
+    }
+}
+
+fn read<D, F>(data: D, handle: F) -> MySubscriber<D, F>
+where
+    D: WithFd,
+    F: EventHandler<MySubscriber<D, F>>,
+{
+    MySubscriber {
+        data,
+        interests: Cell::new(EpollFlags::EPOLLIN),
+        handle,
+    }
+}
+
+impl<S, F> EventHandler<S> for F
+where
+    F: FnMut(),
+{
+    fn handle(&mut self, events: EpollFlags, eventp: &mut Eventp<S>) {
+        todo!()
     }
 }
