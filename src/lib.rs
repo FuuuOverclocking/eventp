@@ -1,6 +1,7 @@
 #![feature(thin_box)]
 
 mod subscriber;
+mod thinbox;
 
 use std::boxed::ThinBox;
 use std::collections::HashMap;
