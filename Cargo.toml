@@ -11,3 +11,6 @@ vptr = { version = "0.2.2", optional = true }
 [features]
 default = ["vptr"]
 vptr = ["dep:vptr"]
+
+[dev-dependencies]
+oneshot = "0.1.11"
