@@ -1,9 +1,6 @@
-#![feature(thin_box)]
-
 mod subscriber;
 mod thinbox;
 
-use std::boxed::ThinBox;
 use std::collections::HashMap;
 use std::mem::{self, MaybeUninit, transmute};
 use std::os::fd::{AsRawFd, RawFd};
@@ -11,12 +8,12 @@ use std::{io, ptr};
 
 use nix::sys::epoll::{Epoll, EpollCreateFlags, EpollEvent, EpollFlags, EpollTimeout};
 
-use crate::subscriber::Subscriber;
+use crate::thinbox::ThinBoxSubscriber;
 
 const DEFAULT_CAPACITY: usize = 256;
 
 pub struct EventP {
-    registered: HashMap<RawFd, ThinBox<dyn Subscriber>>,
+    registered: HashMap<RawFd, ThinBoxSubscriber>,
     epoll: Epoll,
     buf: Vec<MaybeUninit<EpollEvent>>,
     handling: Option<Handling>,
@@ -49,7 +46,7 @@ impl Default for EventP {
 }
 
 impl EventP {
-    pub fn add(&mut self, subscriber: ThinBox<dyn Subscriber>) -> io::Result<()> {
+    pub fn add(&mut self, subscriber: ThinBoxSubscriber) -> io::Result<()> {
         let raw_fd = subscriber.as_fd().as_raw_fd();
         let interests = subscriber.interests().get();
 
@@ -119,7 +116,7 @@ impl EventP {
         });
         for ev in buf {
             let addr = ev.data() as usize;
-            let mut subscriber = unsafe { transmute::<_, ThinBox<dyn Subscriber>>(addr) };
+            let mut subscriber = unsafe { transmute::<usize, ThinBoxSubscriber>(addr) };
             unsafe {
                 self.handling.as_mut().unwrap_unchecked().fd = subscriber.as_fd().as_raw_fd();
             }

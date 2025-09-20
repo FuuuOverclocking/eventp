@@ -1,6 +1,4 @@
 use std::alloc::{self, Layout};
-use std::error::Error;
-use std::fmt::{self, Debug, Display, Formatter};
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Deref, DerefMut};
@@ -11,23 +9,18 @@ use crate::subscriber::Subscriber;
 #[cfg(not(target_pointer_width = "64"))]
 compile_error!("Platforms with pointer width other than 64 are not supported.");
 
-pub struct ThinBox<T: ?Sized> {
+pub struct ThinBoxSubscriber {
     ptr: NonNull<u8>,
-    _marker: PhantomData<T>,
+    _marker: PhantomData<dyn Subscriber>,
 }
 
-unsafe impl<T: ?Sized + Send> Send for ThinBox<T> {}
-
-/// `ThinBox<T>` is `Sync` if `T` is `Sync` because the data is owned.
-unsafe impl<T: ?Sized + Sync> Sync for ThinBox<T> {}
-
-impl ThinBox<dyn Subscriber> {
+impl ThinBoxSubscriber {
     pub fn new_unsize<S: Subscriber>(value: S) -> Self {
         if size_of::<S>() == 0 {
             panic!("ZST not supported");
         } else {
             const DYN_SUBSCRIBER_SIZE: usize = size_of::<&dyn Subscriber>();
-            debug_assert_eq!(DYN_SUBSCRIBER_SIZE, 16);
+            const _: () = assert!(DYN_SUBSCRIBER_SIZE == 16);
 
             let fat_ptr = &value as &dyn Subscriber;
             let vtable_ptr =
@@ -49,20 +42,18 @@ impl ThinBox<dyn Subscriber> {
                     NonNull::new_unchecked(ptr)
                 };
 
-                let this = Self {
+                ptr.as_ptr().sub(8).cast::<usize>().write(vtable_ptr);
+                ptr.as_ptr().cast::<S>().write(value);
+
+                Self {
                     ptr,
                     _marker: PhantomData,
-                };
-
-                this.meta().cast::<usize>().write(vtable_ptr);
-                this.value().cast::<S>().write(value);
-
-                this
+                }
             }
         }
     }
 
-    fn meta(&self) -> *mut u8 {
+    const fn meta(&self) -> *mut u8 {
         //  Safety:
         //  - At least 8 bytes are allocated ahead of the pointer.
         //  - We know that Meta will be aligned because the middle pointer is aligned to the greater
@@ -73,41 +64,118 @@ impl ThinBox<dyn Subscriber> {
         unsafe { self.ptr.as_ptr().sub(8) }
     }
 
-    fn value(&self) -> *mut u8 {
+    const fn value(&self) -> *mut u8 {
         self.ptr.as_ptr()
     }
 }
 
-impl Deref for ThinBox<dyn Subscriber> {
+impl Deref for ThinBoxSubscriber {
     type Target = dyn Subscriber;
 
     fn deref(&self) -> &Self::Target {
         let value = self.value();
         let metadata = self.meta();
         unsafe {
-            let fat_ptr = mem::transmute::<_, *const dyn Subscriber>((value, metadata));
+            let fat_ptr =
+                mem::transmute::<(*mut u8, *mut u8), *const dyn Subscriber>((value, metadata));
             &*fat_ptr
         }
     }
 }
 
-impl DerefMut for ThinBox<dyn Subscriber> {
+impl DerefMut for ThinBoxSubscriber {
     fn deref_mut(&mut self) -> &mut Self::Target {
         let value = self.value();
         let metadata = self.meta();
         unsafe {
-            let fat_ptr = mem::transmute::<_, *mut dyn Subscriber>((value, metadata));
+            let fat_ptr =
+                mem::transmute::<(*mut u8, *mut u8), *mut dyn Subscriber>((value, metadata));
             &mut *fat_ptr
         }
     }
 }
 
-impl<T: ?Sized> Drop for ThinBox<T> {
+impl Drop for ThinBoxSubscriber {
     fn drop(&mut self) {
+        struct DropGuard {
+            ptr: NonNull<u8>,
+            value_layout: Layout,
+            _marker: PhantomData<dyn Subscriber>,
+        }
+
+        impl Drop for DropGuard {
+            fn drop(&mut self) {
+                // All ZST are allocated statically.
+                if self.value_layout.size() == 0 {
+                    return;
+                }
+
+                unsafe {
+                    // SAFETY: Layout must have been computable if we're in drop
+                    let (layout, value_offset) = Layout::new::<usize>()
+                        .extend(self.value_layout)
+                        .unwrap_unchecked();
+
+                    // Since we only allocate for non-ZSTs, the layout size cannot be zero.
+                    debug_assert!(layout.size() != 0);
+                    alloc::dealloc(self.ptr.as_ptr().sub(value_offset), layout);
+                }
+            }
+        }
+
         unsafe {
             let value = self.deref_mut();
-            let value = value as *mut T;
-            self.with_header().drop::<T>(value);
+            let value_ptr = value as *mut _;
+
+            let value_layout = Layout::for_value(value);
+
+            // `_guard` will deallocate the memory when dropped, even if `drop_in_place` unwinds.
+            let _guard = DropGuard {
+                ptr: self.ptr,
+                value_layout,
+                _marker: PhantomData,
+            };
+            ptr::drop_in_place(value_ptr);
+        }
+    }
+}
+
+impl From<Box<dyn Subscriber>> for ThinBoxSubscriber {
+    fn from(old_value: Box<dyn Subscriber>) -> Self {
+        let fat_ptr = old_value.deref();
+        let vtable_ptr = unsafe { mem::transmute::<&dyn Subscriber, (usize, usize)>(fat_ptr).1 };
+
+        let value_layout = Layout::for_value(old_value.deref());
+        if value_layout.size() == 0 {
+            panic!("ZST not supported");
+        }
+
+        let (layout, value_offset) = Layout::new::<usize>()
+            .extend(value_layout)
+            .expect("Failed to create combined layout");
+
+        unsafe {
+            let ptr = {
+                // SAFETY: layout has a non-zero size, because S is not ZST.
+                let ptr = alloc::alloc(layout);
+                if ptr.is_null() {
+                    alloc::handle_alloc_error(layout);
+                }
+
+                let ptr = ptr.add(value_offset);
+                NonNull::new_unchecked(ptr)
+            };
+
+            let old_value = Box::into_raw(old_value) as *mut u8;
+            ptr::copy_nonoverlapping(old_value, ptr.as_ptr(), value_layout.size());
+            alloc::dealloc(old_value, value_layout);
+
+            ptr.as_ptr().sub(8).cast::<usize>().write(vtable_ptr);
+
+            Self {
+                ptr,
+                _marker: PhantomData,
+            }
         }
     }
 }
