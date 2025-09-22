@@ -84,10 +84,10 @@ impl Deref for ThinBoxSubscriber {
 
     fn deref(&self) -> &Self::Target {
         let value = self.value();
-        let metadata = self.meta();
+        let metadata = unsafe { self.meta().cast::<usize>().read() };
         unsafe {
             let fat_ptr =
-                mem::transmute::<(*mut u8, *mut u8), *const dyn Subscriber>((value, metadata));
+                mem::transmute::<(*mut u8, usize), *const dyn Subscriber>((value, metadata));
             &*fat_ptr
         }
     }
@@ -96,10 +96,10 @@ impl Deref for ThinBoxSubscriber {
 impl DerefMut for ThinBoxSubscriber {
     fn deref_mut(&mut self) -> &mut Self::Target {
         let value = self.value();
-        let metadata = self.meta();
+        let metadata = unsafe { self.meta().cast::<usize>().read() };
         unsafe {
             let fat_ptr =
-                mem::transmute::<(*mut u8, *mut u8), *mut dyn Subscriber>((value, metadata));
+                mem::transmute::<(*mut u8, usize), *mut dyn Subscriber>((value, metadata));
             &mut *fat_ptr
         }
     }

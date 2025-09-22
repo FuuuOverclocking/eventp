@@ -5,11 +5,9 @@ use std::os::unix::net::{UnixListener, UnixStream};
 use eventp::{interests, EventP, Subscriber};
 use nix::sys::epoll::EpollFlags;
 
-fn main() {
-    let listener = UnixListener::bind("/tmp/echo.sock").expect("bind failed");
-    listener
-        .set_nonblocking(true)
-        .expect("set nonblocking failed");
+fn main() -> io::Result<()> {
+    let listener = UnixListener::bind("/tmp/echo.sock")?;
+    listener.set_nonblocking(true)?;
 
     let mut eventp = EventP::default();
     interests()
@@ -17,11 +15,10 @@ fn main() {
         .read()
         .with_fd(listener)
         .finish(on_connection)
-        .register_into(&mut eventp)
-        .expect("add to epoll failed");
+        .register_into(&mut eventp)?;
 
     loop {
-        eventp.run().expect("epoll run failed");
+        eventp.run()?;
     }
 }
 
