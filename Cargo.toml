@@ -1,9 +1,9 @@
 [package]
 name = "eventp"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
-libc = "0.2.175"
+libc = "0.2"
 nix = { version = "0.30", features = ["event"] }
 thiserror = "2"

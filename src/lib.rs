@@ -1,3 +1,5 @@
+mod builder;
+mod interests;
 mod subscriber;
 mod thinbox;
 
@@ -8,7 +10,10 @@ use std::{io, ptr};
 
 use nix::sys::epoll::{Epoll, EpollCreateFlags, EpollEvent, EpollFlags, EpollTimeout};
 
-use crate::thinbox::ThinBoxSubscriber;
+pub use crate::builder::{FdWithInterests, Subscriber1, Subscriber2};
+pub use crate::interests::{Interests, interests};
+pub use crate::subscriber::{Handler, Subscriber, WithInterests};
+pub use crate::thinbox::ThinBoxSubscriber;
 
 const DEFAULT_CAPACITY: usize = 256;
 
@@ -121,7 +126,7 @@ impl EventP {
                 self.handling.as_mut().unwrap_unchecked().fd = subscriber.as_fd().as_raw_fd();
             }
 
-            subscriber.handle(self, ev.events());
+            subscriber.handle(ev.events(), self);
             mem::forget(subscriber);
         }
         let handling = unsafe { self.handling.take().unwrap_unchecked() };

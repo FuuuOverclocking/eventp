@@ -15,7 +15,7 @@ pub struct ThinBoxSubscriber {
 }
 
 impl ThinBoxSubscriber {
-    pub fn new_unsize<S: Subscriber>(value: S) -> Self {
+    pub fn new<S: Subscriber>(value: S) -> Self {
         if size_of::<S>() == 0 {
             panic!("ZST not supported");
         } else {
@@ -51,6 +51,16 @@ impl ThinBoxSubscriber {
                 }
             }
         }
+    }
+
+    #[allow(clippy::boxed_local)]
+    pub fn from_box<S: Subscriber>(value: Box<S>) -> Self {
+        // Take down from heap firstly.
+        Self::new(*value)
+    }
+
+    pub fn from_box_dyn(value: Box<dyn Subscriber>) -> Self {
+        Self::from(value)
     }
 
     const fn meta(&self) -> *mut u8 {
@@ -137,6 +147,12 @@ impl Drop for ThinBoxSubscriber {
             };
             ptr::drop_in_place(value_ptr);
         }
+    }
+}
+
+impl<S: Subscriber> From<S> for ThinBoxSubscriber {
+    fn from(value: S) -> Self {
+        Self::new(value)
     }
 }
 
