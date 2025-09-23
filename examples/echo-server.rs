@@ -25,12 +25,12 @@ fn on_connection(listener: &mut impl Accept, eventp: &mut impl EventpLike) {
         .edge_triggered()
         .read()
         .with_fd(stream)
-        .with_handler(on_stream)
+        .with_handler(on_data)
         .register_into(eventp)
         .expect("add to epoll failed");
 }
 
-fn on_stream(stream: &mut (impl Read + Write + AsFd), event: Event, eventp: &mut impl EventpLike) {
+fn on_data(stream: &mut (impl Read + Write + AsFd), event: Event, eventp: &mut impl EventpLike) {
     if event.is_readable() {
         let mut buf = [0; 512];
         loop {
@@ -161,7 +161,7 @@ mod tests {
             .returning(|_| Err(io::Error::new(ErrorKind::WouldBlock, "no more data")));
 
         // 2. Act
-        on_stream(&mut mock_stream, EpollFlags::EPOLLIN, &mut mock_eventp);
+        on_data(&mut mock_stream, EpollFlags::EPOLLIN, &mut mock_eventp);
     }
 
     #[test]
@@ -180,7 +180,7 @@ mod tests {
             .returning(|_| Ok(()));
 
         // 2. Act
-        on_stream(&mut mock_stream, EpollFlags::EPOLLIN, &mut mock_eventp);
+        on_data(&mut mock_stream, EpollFlags::EPOLLIN, &mut mock_eventp);
     }
 
     #[test]
@@ -202,7 +202,7 @@ mod tests {
             .returning(|_| Ok(()));
 
         // 2. Act
-        on_stream(&mut mock_stream, EpollFlags::EPOLLIN, &mut mock_eventp);
+        on_data(&mut mock_stream, EpollFlags::EPOLLIN, &mut mock_eventp);
     }
 
     #[test]
@@ -223,7 +223,7 @@ mod tests {
             .returning(|_| Ok(()));
 
         // 2. Act
-        on_stream(
+        on_data(
             &mut mock_stream,
             EpollFlags::EPOLLHUP | EpollFlags::EPOLLERR,
             &mut mock_eventp,
