@@ -9,7 +9,7 @@ use std::cell::Cell;
 use std::os::fd::AsFd;
 
 use crate::epoll::EpollFlags;
-use crate::{EventpLike, FdWithInterest, Handler, Subscriber2};
+use crate::{EventpOps, FdWithInterest, Handler, Subscriber2};
 
 /// Represents interest in I/O readiness events.
 ///
@@ -70,7 +70,7 @@ impl Interest {
     pub const fn with_fd_and_handler<S, E>(self, fd_with_handler: S) -> Subscriber2<S>
     where
         S: AsFd + Handler<E>,
-        E: EventpLike,
+        E: EventpOps,
     {
         Subscriber2 {
             interest: Cell::new(self),

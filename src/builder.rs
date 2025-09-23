@@ -2,7 +2,7 @@ use std::cell::Cell;
 use std::marker::PhantomData;
 use std::os::fd::{AsFd, BorrowedFd};
 
-use crate::{Event, EventpLike, Handler, Interest, WithInterest};
+use crate::{Event, EventpOps, Handler, Interest, WithInterest};
 
 pub struct FdWithInterest<Fd> {
     pub(crate) fd: Fd,
@@ -53,7 +53,7 @@ impl<Fd, F, E> Handler<E> for Subscriber1<Fd, (), F>
 where
     F: FnMut(),
     Fd: AsFd,
-    E: EventpLike,
+    E: EventpOps,
 {
     fn handle(&mut self, _event: Event, _eventp: &mut E) {
         (self.handler.f)()
@@ -65,7 +65,7 @@ impl<Fd, F, E> Handler<E> for Subscriber1<Fd, (&mut Fd,), F>
 where
     F: FnMut(&mut Fd),
     Fd: AsFd,
-    E: EventpLike,
+    E: EventpOps,
 {
     fn handle(&mut self, _event: Event, _eventp: &mut E) {
         (self.handler.f)(&mut self.fd)
@@ -77,7 +77,7 @@ impl<Fd, F, E> Handler<E> for Subscriber1<Fd, (Event,), F>
 where
     F: FnMut(Event),
     Fd: AsFd,
-    E: EventpLike,
+    E: EventpOps,
 {
     fn handle(&mut self, event: Event, _eventp: &mut E) {
         (self.handler.f)(event)
@@ -89,7 +89,7 @@ where
 // where
 //     F: FnMut(&mut E),
 //     Fd: AsFd,
-//     E: EventpLike,
+//     E: EventpOps,
 // {
 //     fn handle(&mut self, _event: Event, eventp: &mut E) {
 //         (self.handler.f)(eventp)
@@ -101,7 +101,7 @@ impl<Fd, F, E> Handler<E> for Subscriber1<Fd, (&mut Fd, Event), F>
 where
     F: FnMut(&mut Fd, Event),
     Fd: AsFd,
-    E: EventpLike,
+    E: EventpOps,
 {
     fn handle(&mut self, event: Event, _eventp: &mut E) {
         (self.handler.f)(&mut self.fd, event)
@@ -113,7 +113,7 @@ impl<Fd, F, E> Handler<E> for Subscriber1<Fd, (&mut Fd, &mut E), F>
 where
     F: FnMut(&mut Fd, &mut E),
     Fd: AsFd,
-    E: EventpLike,
+    E: EventpOps,
 {
     fn handle(&mut self, _event: Event, eventp: &mut E) {
         (self.handler.f)(&mut self.fd, eventp)
@@ -125,7 +125,7 @@ impl<Fd, F, E> Handler<E> for Subscriber1<Fd, (Event, &mut E), F>
 where
     F: FnMut(Event, &mut E),
     Fd: AsFd,
-    E: EventpLike,
+    E: EventpOps,
 {
     fn handle(&mut self, event: Event, eventp: &mut E) {
         (self.handler.f)(event, eventp)
@@ -137,7 +137,7 @@ impl<Fd, F, E> Handler<E> for Subscriber1<Fd, (&mut Fd, Event, &mut E), F>
 where
     F: FnMut(&mut Fd, Event, &mut E),
     Fd: AsFd,
-    E: EventpLike,
+    E: EventpOps,
 {
     fn handle(&mut self, event: Event, eventp: &mut E) {
         (self.handler.f)(&mut self.fd, event, eventp)
@@ -161,7 +161,7 @@ impl<S: AsFd> AsFd for Subscriber2<S> {
     }
 }
 
-impl<S: AsFd + Handler<E>, E: EventpLike> Handler<E> for Subscriber2<S> {
+impl<S: AsFd + Handler<E>, E: EventpOps> Handler<E> for Subscriber2<S> {
     fn handle(&mut self, event: Event, eventp: &mut E) {
         self.fd_with_handler.handle(event, eventp);
     }

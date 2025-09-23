@@ -1,6 +1,6 @@
 mod builder;
 mod event;
-mod eventp_like;
+mod eventp_ops;
 mod interest;
 mod subscriber;
 mod thinbox;
@@ -18,9 +18,9 @@ use rustc_hash::FxHashMap;
 pub use crate::builder::{FdWithInterest, Subscriber1, Subscriber2};
 use crate::epoll::*;
 pub use crate::event::Event;
-pub use crate::eventp_like::EventpLike;
+pub use crate::eventp_ops::EventpOps;
 #[cfg(feature = "mock")]
-pub use crate::eventp_like::MockEventpLike as MockEventp;
+pub use crate::eventp_ops::MockEventpOps as MockEventp;
 pub use crate::interest::{interest, Interest};
 pub use crate::subscriber::{Handler, Subscriber, WithInterest};
 pub use crate::thinbox::ThinBoxSubscriber;
@@ -124,7 +124,7 @@ impl Eventp {
     }
 }
 
-impl EventpLike for Eventp {
+impl EventpOps for Eventp {
     fn add(&mut self, subscriber: ThinBoxSubscriber<Eventp>) -> io::Result<()> {
         let raw_fd = subscriber.as_fd().as_raw_fd();
 

@@ -6,19 +6,19 @@ use std::ptr::{self, NonNull};
 
 #[cfg(feature = "mock")]
 use crate::MockEventp;
-use crate::{Eventp, EventpLike, Subscriber};
+use crate::{Eventp, EventpOps, Subscriber};
 
 #[cfg(not(target_pointer_width = "64"))]
 compile_error!("Platforms with pointer width other than 64 are not supported.");
 
-pub struct ThinBoxSubscriber<E: EventpLike> {
+pub struct ThinBoxSubscriber<E: EventpOps> {
     ptr: NonNull<u8>,
     _marker: PhantomData<dyn Subscriber<E>>,
 }
 
 impl<E> ThinBoxSubscriber<E>
 where
-    E: EventpLike,
+    E: EventpOps,
 {
     pub fn new<S: Subscriber<E>>(value: S) -> Self {
         if size_of::<S>() == 0 {
@@ -89,7 +89,7 @@ where
     }
 }
 
-impl<E: EventpLike> Deref for ThinBoxSubscriber<E> {
+impl<E: EventpOps> Deref for ThinBoxSubscriber<E> {
     type Target = dyn Subscriber<E>;
 
     fn deref(&self) -> &Self::Target {
@@ -103,7 +103,7 @@ impl<E: EventpLike> Deref for ThinBoxSubscriber<E> {
     }
 }
 
-impl<E: EventpLike> DerefMut for ThinBoxSubscriber<E> {
+impl<E: EventpOps> DerefMut for ThinBoxSubscriber<E> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         let value = self.value();
         let metadata = unsafe { self.meta().cast::<usize>().read() };
@@ -115,15 +115,15 @@ impl<E: EventpLike> DerefMut for ThinBoxSubscriber<E> {
     }
 }
 
-impl<E: EventpLike> Drop for ThinBoxSubscriber<E> {
+impl<E: EventpOps> Drop for ThinBoxSubscriber<E> {
     fn drop(&mut self) {
-        struct DropGuard<E: EventpLike> {
+        struct DropGuard<E: EventpOps> {
             ptr: NonNull<u8>,
             value_layout: Layout,
             _marker: PhantomData<dyn Subscriber<E>>,
         }
 
-        impl<E: EventpLike> Drop for DropGuard<E> {
+        impl<E: EventpOps> Drop for DropGuard<E> {
             fn drop(&mut self) {
                 // All ZST are allocated statically.
                 if self.value_layout.size() == 0 {
@@ -163,7 +163,7 @@ impl<E: EventpLike> Drop for ThinBoxSubscriber<E> {
 impl<S, E> From<S> for ThinBoxSubscriber<E>
 where
     S: Subscriber<E>,
-    E: EventpLike,
+    E: EventpOps,
 {
     fn from(value: S) -> Self {
         Self::new(value)
@@ -172,7 +172,7 @@ where
 
 impl<E> From<Box<dyn Subscriber<E>>> for ThinBoxSubscriber<E>
 where
-    E: EventpLike,
+    E: EventpOps,
 {
     fn from(old_value: Box<dyn Subscriber<E>>) -> Self {
         let fat_ptr = old_value.deref();

@@ -3,7 +3,7 @@ use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::os::fd::{AsFd, AsRawFd};
 use std::pin::Pin;
 
-use eventp::{interest, Event, Eventp, EventpLike, Subscriber};
+use eventp::{interest, Event, Eventp, EventpOps, Subscriber};
 
 fn main() -> io::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:3000")?;
@@ -19,12 +19,7 @@ fn main() -> io::Result<()> {
     eventp.run_forever()
 }
 
-fn a(listener: &mut impl Accept, eventp: Pin<&mut impl EventpLike>) {
-
-    eventp.add_pinned(subscriber)
-}
-
-fn on_connection(listener: &mut impl Accept, eventp: &mut impl EventpLike) {
+fn on_connection(listener: &mut impl Accept, eventp: &mut impl EventpOps) {
     let (stream, _) = listener.accept().expect("accept failed");
 
     interest()
@@ -36,7 +31,7 @@ fn on_connection(listener: &mut impl Accept, eventp: &mut impl EventpLike) {
         .expect("add to epoll failed");
 }
 
-fn on_data(stream: &mut (impl Read + Write + AsFd), event: Event, eventp: &mut impl EventpLike) {
+fn on_data(stream: &mut (impl Read + Write + AsFd), event: Event, eventp: &mut impl EventpOps) {
     if event.is_readable() {
         let mut buf = [0; 512];
         loop {
