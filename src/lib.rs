@@ -52,15 +52,15 @@ impl Eventp {
         })
     }
 
-    pub fn raw(&self) -> &Epoll {
+    pub fn inner(&self) -> &Epoll {
         &self.epoll
     }
 
-    pub fn raw_mut(&mut self) -> &mut Epoll {
+    pub fn inner_mut(&mut self) -> &mut Epoll {
         &mut self.epoll
     }
 
-    pub fn into_raw(self) -> Epoll {
+    pub fn into_inner(self) -> Epoll {
         self.epoll
     }
 }
