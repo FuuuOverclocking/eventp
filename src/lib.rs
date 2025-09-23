@@ -1,24 +1,28 @@
 mod builder;
+mod eventp_like;
 mod interests;
 mod subscriber;
 mod thinbox;
 
-use std::collections::HashMap;
-use std::mem::{self, MaybeUninit, transmute};
+use std::mem::{self, transmute, MaybeUninit};
 use std::os::fd::{AsRawFd, RawFd};
 use std::{io, ptr};
 
 use nix::sys::epoll::{Epoll, EpollCreateFlags, EpollEvent, EpollFlags, EpollTimeout};
+use rustc_hash::FxHashMap;
 
 pub use crate::builder::{FdWithInterests, Subscriber1, Subscriber2};
-pub use crate::interests::{Interests, interests};
+pub use crate::eventp_like::EventpLike;
+#[cfg(feature = "mock")]
+pub use crate::eventp_like::MockEventpLike as MockEventp;
+pub use crate::interests::{interests, Interests};
 pub use crate::subscriber::{Handler, Subscriber, WithInterests};
 pub use crate::thinbox::ThinBoxSubscriber;
 
 const DEFAULT_CAPACITY: usize = 256;
 
-pub struct EventP {
-    registered: HashMap<RawFd, ThinBoxSubscriber>,
+pub struct Eventp {
+    registered: FxHashMap<RawFd, ThinBoxSubscriber>,
     epoll: Epoll,
     buf: Vec<MaybeUninit<EpollEvent>>,
     handling: Option<Handling>,
@@ -29,7 +33,7 @@ struct Handling {
     to_remove: Vec<RawFd>,
 }
 
-impl EventP {
+impl Eventp {
     pub fn new(capacity: usize, flags: EpollCreateFlags) -> io::Result<Self> {
         let mut buf = Vec::with_capacity(capacity);
         unsafe { buf.set_len(capacity) };
@@ -41,17 +45,29 @@ impl EventP {
             handling: None,
         })
     }
+
+    pub fn raw(&self) -> &Epoll {
+        &self.epoll
+    }
+
+    pub fn raw_mut(&mut self) -> &mut Epoll {
+        &mut self.epoll
+    }
+
+    pub fn into_raw(self) -> Epoll {
+        self.epoll
+    }
 }
 
-impl Default for EventP {
+impl Default for Eventp {
     fn default() -> Self {
         Self::new(DEFAULT_CAPACITY, EpollCreateFlags::EPOLL_CLOEXEC)
             .expect("Failed to create epoll instance")
     }
 }
 
-impl EventP {
-    pub fn add(&mut self, subscriber: ThinBoxSubscriber) -> io::Result<()> {
+impl EventpLike for Eventp {
+    fn add(&mut self, subscriber: ThinBoxSubscriber) -> io::Result<()> {
         let raw_fd = subscriber.as_fd().as_raw_fd();
         let interests = subscriber.interests().get();
 
@@ -64,7 +80,7 @@ impl EventP {
         Ok(())
     }
 
-    pub fn modify(&mut self, fd: RawFd, interests: EpollFlags) -> io::Result<()> {
+    fn modify(&mut self, fd: RawFd, interests: EpollFlags) -> io::Result<()> {
         let subscriber = self
             .registered
             .get(&fd)
@@ -78,7 +94,7 @@ impl EventP {
         Ok(())
     }
 
-    pub fn delete(&mut self, fd: RawFd) -> io::Result<()> {
+    fn delete(&mut self, fd: RawFd) -> io::Result<()> {
         let ret = unsafe {
             libc::epoll_ctl(
                 self.epoll.0.as_raw_fd(),
@@ -99,13 +115,13 @@ impl EventP {
         Ok(())
     }
 
-    pub fn run(&mut self) -> io::Result<()> {
+    fn run(&mut self) -> io::Result<()> {
         self.run_with_timeout(EpollTimeout::NONE)
     }
 
-    pub fn run_with_timeout(&mut self, timeout: EpollTimeout) -> io::Result<()> {
+    fn run_with_timeout(&mut self, timeout: EpollTimeout) -> io::Result<()> {
         if self.handling.is_some() {
-            panic!("Recursive call to EventP::run_with_timeout");
+            panic!("Recursive call to Eventp::run_with_timeout");
         }
 
         // Use `BorrowedBuf` instead, once it becomes stable.

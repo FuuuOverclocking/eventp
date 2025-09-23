@@ -4,8 +4,9 @@ use std::os::fd::{AsFd, BorrowedFd};
 
 use nix::sys::epoll::EpollFlags;
 
+use crate::interests::Interests;
 use crate::subscriber::{Handler, WithInterests};
-use crate::{interests::Interests, EventP};
+use crate::Eventp;
 
 pub struct FdWithInterests<Fd> {
     pub(crate) fd: Fd,
@@ -57,7 +58,7 @@ where
     F: FnMut(),
     Fd: AsFd,
 {
-    fn handle(&mut self, _events: EpollFlags, _eventp: &mut EventP) {
+    fn handle(&mut self, _events: EpollFlags, _eventp: &mut Eventp) {
         (self.handler.f)()
     }
 }
@@ -68,7 +69,7 @@ where
     F: FnMut(&mut Fd),
     Fd: AsFd,
 {
-    fn handle(&mut self, _events: EpollFlags, _eventp: &mut EventP) {
+    fn handle(&mut self, _events: EpollFlags, _eventp: &mut Eventp) {
         (self.handler.f)(&mut self.fd)
     }
 }
@@ -79,18 +80,18 @@ where
     F: FnMut(EpollFlags),
     Fd: AsFd,
 {
-    fn handle(&mut self, events: EpollFlags, _eventp: &mut EventP) {
+    fn handle(&mut self, events: EpollFlags, _eventp: &mut Eventp) {
         (self.handler.f)(events)
     }
 }
 
 // 3
-impl<Fd, F> Handler for Subscriber1<Fd, (&mut EventP,), F>
+impl<Fd, F> Handler for Subscriber1<Fd, (&mut Eventp,), F>
 where
-    F: FnMut(&mut EventP),
+    F: FnMut(&mut Eventp),
     Fd: AsFd,
 {
-    fn handle(&mut self, _events: EpollFlags, eventp: &mut EventP) {
+    fn handle(&mut self, _events: EpollFlags, eventp: &mut Eventp) {
         (self.handler.f)(eventp)
     }
 }
@@ -101,40 +102,40 @@ where
     F: FnMut(&mut Fd, EpollFlags),
     Fd: AsFd,
 {
-    fn handle(&mut self, events: EpollFlags, _eventp: &mut EventP) {
+    fn handle(&mut self, events: EpollFlags, _eventp: &mut Eventp) {
         (self.handler.f)(&mut self.fd, events)
     }
 }
 
 // 13
-impl<Fd, F> Handler for Subscriber1<Fd, (&mut Fd, &mut EventP), F>
+impl<Fd, F> Handler for Subscriber1<Fd, (&mut Fd, &mut Eventp), F>
 where
-    F: FnMut(&mut Fd, &mut EventP),
+    F: FnMut(&mut Fd, &mut Eventp),
     Fd: AsFd,
 {
-    fn handle(&mut self, _events: EpollFlags, eventp: &mut EventP) {
+    fn handle(&mut self, _events: EpollFlags, eventp: &mut Eventp) {
         (self.handler.f)(&mut self.fd, eventp)
     }
 }
 
 // 23
-impl<Fd, F> Handler for Subscriber1<Fd, (EpollFlags, &mut EventP), F>
+impl<Fd, F> Handler for Subscriber1<Fd, (EpollFlags, &mut Eventp), F>
 where
-    F: FnMut(EpollFlags, &mut EventP),
+    F: FnMut(EpollFlags, &mut Eventp),
     Fd: AsFd,
 {
-    fn handle(&mut self, events: EpollFlags, eventp: &mut EventP) {
+    fn handle(&mut self, events: EpollFlags, eventp: &mut Eventp) {
         (self.handler.f)(events, eventp)
     }
 }
 
 // 123
-impl<Fd, F> Handler for Subscriber1<Fd, (&mut Fd, EpollFlags, &mut EventP), F>
+impl<Fd, F> Handler for Subscriber1<Fd, (&mut Fd, EpollFlags, &mut Eventp), F>
 where
-    F: FnMut(&mut Fd, EpollFlags, &mut EventP),
+    F: FnMut(&mut Fd, EpollFlags, &mut Eventp),
     Fd: AsFd,
 {
-    fn handle(&mut self, events: EpollFlags, eventp: &mut EventP) {
+    fn handle(&mut self, events: EpollFlags, eventp: &mut Eventp) {
         (self.handler.f)(&mut self.fd, events, eventp)
     }
 }
@@ -157,7 +158,7 @@ impl<S: AsFd> AsFd for Subscriber2<S> {
 }
 
 impl<S: AsFd + Handler> Handler for Subscriber2<S> {
-    fn handle(&mut self, events: EpollFlags, eventp: &mut EventP) {
+    fn handle(&mut self, events: EpollFlags, eventp: &mut Eventp) {
         self.fd_with_handler.handle(events, eventp);
     }
 }

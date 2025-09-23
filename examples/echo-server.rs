@@ -2,14 +2,14 @@ use std::io::{self, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::os::fd::AsRawFd;
 
-use eventp::{interests, EventP, Subscriber};
+use eventp::{interests, Eventp, EventpLike, Subscriber};
 use nix::sys::epoll::EpollFlags;
 
 fn main() -> io::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:3000")?;
     listener.set_nonblocking(true)?;
 
-    let mut eventp = EventP::default();
+    let mut eventp = Eventp::default();
     interests()
         .read()
         .with_fd(listener)
@@ -21,7 +21,7 @@ fn main() -> io::Result<()> {
     }
 }
 
-fn on_connection(listener: &mut TcpListener, eventp: &mut EventP) {
+fn on_connection(listener: &mut TcpListener, eventp: &mut Eventp) {
     let (stream, _) = listener.accept().expect("accept failed");
     stream
         .set_nonblocking(true)
@@ -36,7 +36,7 @@ fn on_connection(listener: &mut TcpListener, eventp: &mut EventP) {
         .expect("add to epoll failed");
 }
 
-fn on_stream(stream: &mut TcpStream, events: EpollFlags, eventp: &mut EventP) {
+fn on_stream(stream: &mut TcpStream, events: EpollFlags, eventp: &mut Eventp) {
     if events.contains(EpollFlags::EPOLLIN) {
         let mut buf = [0; 1024];
         loop {

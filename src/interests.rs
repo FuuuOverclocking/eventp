@@ -1,4 +1,5 @@
-use std::{cell::Cell, os::fd::AsFd};
+use std::cell::Cell;
+use std::os::fd::AsFd;
 
 use nix::sys::epoll::EpollFlags;
 

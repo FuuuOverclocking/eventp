@@ -4,10 +4,10 @@ use std::os::fd::AsFd;
 
 use nix::sys::epoll::EpollFlags;
 
-use crate::{EventP, ThinBoxSubscriber};
+use crate::{Eventp, EventpLike, ThinBoxSubscriber};
 
 pub trait Subscriber: AsFd + WithInterests + Handler {
-    fn register_into(self, eventp: &mut EventP) -> io::Result<()>
+    fn register_into(self, eventp: &mut Eventp) -> io::Result<()>
     where
         Self: Sized,
     {
@@ -22,5 +22,5 @@ pub trait WithInterests {
 }
 
 pub trait Handler {
-    fn handle(&mut self, events: EpollFlags, eventp: &mut EventP);
+    fn handle(&mut self, events: EpollFlags, eventp: &mut Eventp);
 }
