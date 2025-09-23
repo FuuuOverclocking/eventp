@@ -12,7 +12,7 @@ fn main() -> io::Result<()> {
     interest()
         .read()
         .with_fd(listener)
-        .finish(on_connection::<TcpListener, _>)
+        .with_handler(on_connection)
         .register_into(&mut eventp)?;
 
     loop {
@@ -20,34 +20,26 @@ fn main() -> io::Result<()> {
     }
 }
 
-fn on_connection<A, E>(listener: &mut A, eventp: &mut E)
-where
-    A: Accept,
-    E: EventpLike,
-{
+fn on_connection(listener: &mut impl Accept, eventp: &mut impl EventpLike) {
     let (stream, _) = listener.accept().expect("accept failed");
 
     interest()
         .edge_triggered()
         .read()
         .with_fd(stream)
-        .finish(on_stream)
+        .with_handler(on_stream)
         .register_into(eventp)
         .expect("add to epoll failed");
 }
 
-fn on_stream<S, E>(stream: &mut S, event: Event, eventp: &mut E)
-where
-    S: Read + Write + AsRawFd,
-    E: EventpLike,
-{
+fn on_stream(stream: &mut (impl Read + Write + AsFd), event: Event, eventp: &mut impl EventpLike) {
     if event.is_readable() {
         let mut buf = [0; 1024];
         loop {
             match stream.read(&mut buf) {
                 Ok(0) => {
                     eventp
-                        .delete(stream.as_raw_fd())
+                        .delete(stream.as_fd().as_raw_fd())
                         .expect("delete from epoll failed");
                     return;
                 }
@@ -58,7 +50,7 @@ where
                 Err(e) => {
                     eprintln!("{}", e);
                     eventp
-                        .delete(stream.as_raw_fd())
+                        .delete(stream.as_fd().as_raw_fd())
                         .expect("delete from epoll failed");
                     return;
                 }
@@ -67,19 +59,21 @@ where
     }
     if event.is_error() || event.is_hangup() {
         eventp
-            .delete(stream.as_raw_fd())
+            .delete(stream.as_fd().as_raw_fd())
             .expect("delete from epoll failed");
     }
 }
 
 #[cfg_attr(feature = "mock", mockall::automock(type Stream = MockStream;))]
 trait Accept {
-    type Stream: Read + Write + AsFd + AsRawFd;
+    type Stream: Read + Write + AsFd;
+
     fn accept(&self) -> io::Result<(Self::Stream, SocketAddr)>;
 }
 
 impl Accept for TcpListener {
     type Stream = TcpStream;
+
     fn accept(&self) -> io::Result<(Self::Stream, SocketAddr)> {
         let (stream, addr) = self.accept()?;
         stream.set_nonblocking(true)?;
@@ -102,9 +96,6 @@ mockall::mock! {
     impl AsFd for Stream {
         fn as_fd(&self) -> std::os::fd::BorrowedFd<'_>;
     }
-    impl AsRawFd for Stream {
-        fn as_raw_fd(&self) -> std::os::fd::RawFd;
-    }
 }
 
 #[cfg(all(test, feature = "mock"))]
@@ -122,14 +113,12 @@ mod tests {
         let mut mock_listener = MockAccept::new();
         let mut mock_eventp = MockEventp::new();
 
-        // 当 listener.accept() 被调用时，返回一个 MockStream
         mock_listener.expect_accept().returning(|| {
             let stream = MockStream::new();
             let addr = "127.0.0.1:12345".parse().unwrap();
             Ok((stream, addr))
         });
 
-        // 期望 eventp.add() 被调用一次
         mock_eventp
             .expect_add()
             .with(always())
@@ -151,7 +140,6 @@ mod tests {
         let mut read_buf = [0u8; 1024];
         read_buf[..data.len()].copy_from_slice(data);
 
-        // 期望第一次 read 返回 "hello"
         mock_stream
             .expect_read()
             .times(1)
@@ -161,7 +149,6 @@ mod tests {
                 Ok(data.len())
             });
 
-        // 期望 write 被调用，内容为 "hello"
         mock_stream
             .expect_write()
             .with(eq(data.as_slice()))
@@ -169,7 +156,6 @@ mod tests {
             .in_sequence(&mut seq)
             .returning(|buf| Ok(buf.len()));
 
-        // 期望第二次 read 返回 WouldBlock
         mock_stream
             .expect_read()
             .times(1)

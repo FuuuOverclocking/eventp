@@ -10,7 +10,7 @@ pub struct FdWithInterest<Fd> {
 }
 
 impl<Fd: AsFd> FdWithInterest<Fd> {
-    pub fn finish<T, F>(self, f: F) -> Subscriber1<Fd, T, F> {
+    pub fn with_handler<T, F>(self, f: F) -> Subscriber1<Fd, T, F> {
         Subscriber1 {
             fd: self.fd,
             interest: Cell::new(self.interest),

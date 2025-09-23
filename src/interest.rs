@@ -67,7 +67,7 @@ impl Interest {
     /// Combines this `Interest` with a handler to create a full `Subscriber`.
     ///
     /// This finalizes the setup for a subscribable I/O source.
-    pub const fn finish<S, E>(self, fd_with_handler: S) -> Subscriber2<S>
+    pub const fn with_fd_and_handler<S, E>(self, fd_with_handler: S) -> Subscriber2<S>
     where
         S: AsFd + Handler<E>,
         E: EventpLike,
