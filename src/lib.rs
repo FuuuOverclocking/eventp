@@ -121,11 +121,24 @@ impl EventpLike for Eventp {
         Ok(())
     }
 
-    fn run(&mut self) -> io::Result<()> {
-        self.run_with_timeout(EpollTimeout::NONE)
+    fn run_forever(&mut self) -> io::Result<()> {
+        loop {
+            match self.run_once() {
+                Ok(_) => continue,
+
+                // The only source of error is epoll_wait.
+                // Ref: https://man.archlinux.org/man/epoll_wait.2.en#ERRORS
+                Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+                Err(e) => return Err(e),
+            }
+        }
     }
 
-    fn run_with_timeout(&mut self, timeout: EpollTimeout) -> io::Result<()> {
+    fn run_once(&mut self) -> io::Result<()> {
+        self.run_once_with_timeout(EpollTimeout::NONE)
+    }
+
+    fn run_once_with_timeout(&mut self, timeout: EpollTimeout) -> io::Result<()> {
         if self.handling.is_some() {
             panic!("Recursive call to Eventp::run_with_timeout");
         }

@@ -15,9 +15,7 @@ fn main() -> io::Result<()> {
         .with_handler(on_connection)
         .register_into(&mut eventp)?;
 
-    loop {
-        eventp.run()?;
-    }
+    eventp.run_forever()
 }
 
 fn on_connection(listener: &mut impl Accept, eventp: &mut impl EventpLike) {
@@ -34,7 +32,7 @@ fn on_connection(listener: &mut impl Accept, eventp: &mut impl EventpLike) {
 
 fn on_stream(stream: &mut (impl Read + Write + AsFd), event: Event, eventp: &mut impl EventpLike) {
     if event.is_readable() {
-        let mut buf = [0; 1024];
+        let mut buf = [0; 512];
         loop {
             match stream.read(&mut buf) {
                 Ok(0) => {
