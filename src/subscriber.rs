@@ -2,12 +2,10 @@ use std::cell::Cell;
 use std::io;
 use std::os::fd::AsFd;
 
-use nix::sys::epoll::EpollFlags;
+use crate::{Event, EventpLike, Interest, ThinBoxSubscriber};
 
-use crate::{Eventp, EventpLike, ThinBoxSubscriber};
-
-pub trait Subscriber: AsFd + WithInterests + Handler {
-    fn register_into(self, eventp: &mut Eventp) -> io::Result<()>
+pub trait Subscriber<E: EventpLike>: AsFd + WithInterest + Handler<E> {
+    fn register_into(self, eventp: &mut E) -> io::Result<()>
     where
         Self: Sized,
     {
@@ -15,12 +13,17 @@ pub trait Subscriber: AsFd + WithInterests + Handler {
     }
 }
 
-impl<S> Subscriber for S where S: AsFd + WithInterests + Handler {}
-
-pub trait WithInterests {
-    fn interests(&self) -> &Cell<EpollFlags>;
+impl<S, E> Subscriber<E> for S
+where
+    S: AsFd + WithInterest + Handler<E>,
+    E: EventpLike,
+{
 }
 
-pub trait Handler {
-    fn handle(&mut self, events: EpollFlags, eventp: &mut Eventp);
+pub trait WithInterest {
+    fn interest(&self) -> &Cell<Interest>;
+}
+
+pub trait Handler<E: EventpLike> {
+    fn handle(&mut self, event: Event, eventp: &mut E);
 }

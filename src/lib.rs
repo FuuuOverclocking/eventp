@@ -1,30 +1,36 @@
 mod builder;
+mod event;
 mod eventp_like;
-mod interests;
+mod interest;
 mod subscriber;
 mod thinbox;
+
+pub mod epoll {
+    pub use nix::sys::epoll::{Epoll, EpollCreateFlags, EpollEvent, EpollFlags, EpollTimeout};
+}
 
 use std::mem::{self, transmute, MaybeUninit};
 use std::os::fd::{AsRawFd, RawFd};
 use std::{io, ptr};
 
-use nix::sys::epoll::{Epoll, EpollCreateFlags, EpollEvent, EpollFlags, EpollTimeout};
 use rustc_hash::FxHashMap;
 
-pub use crate::builder::{FdWithInterests, Subscriber1, Subscriber2};
+pub use crate::builder::{FdWithInterest, Subscriber1, Subscriber2};
+use crate::epoll::*;
+pub use crate::event::Event;
 pub use crate::eventp_like::EventpLike;
 #[cfg(feature = "mock")]
 pub use crate::eventp_like::MockEventpLike as MockEventp;
-pub use crate::interests::{interests, Interests};
-pub use crate::subscriber::{Handler, Subscriber, WithInterests};
+pub use crate::interest::{interest, Interest};
+pub use crate::subscriber::{Handler, Subscriber, WithInterest};
 pub use crate::thinbox::ThinBoxSubscriber;
 
-const DEFAULT_CAPACITY: usize = 256;
+const DEFAULT_EVENT_BUF_CAPACITY: usize = 256;
 
 pub struct Eventp {
-    registered: FxHashMap<RawFd, ThinBoxSubscriber>,
+    registered: FxHashMap<RawFd, ThinBoxSubscriber<Eventp>>,
     epoll: Epoll,
-    buf: Vec<MaybeUninit<EpollEvent>>,
+    event_buf: Vec<MaybeUninit<EpollEvent>>,
     handling: Option<Handling>,
 }
 
@@ -41,7 +47,7 @@ impl Eventp {
         Ok(Self {
             epoll: Epoll::new(flags).map_err(io::Error::from)?,
             registered: Default::default(),
-            buf,
+            event_buf: buf,
             handling: None,
         })
     }
@@ -61,18 +67,18 @@ impl Eventp {
 
 impl Default for Eventp {
     fn default() -> Self {
-        Self::new(DEFAULT_CAPACITY, EpollCreateFlags::EPOLL_CLOEXEC)
+        Self::new(DEFAULT_EVENT_BUF_CAPACITY, EpollCreateFlags::EPOLL_CLOEXEC)
             .expect("Failed to create epoll instance")
     }
 }
 
 impl EventpLike for Eventp {
-    fn add(&mut self, subscriber: ThinBoxSubscriber) -> io::Result<()> {
+    fn add(&mut self, subscriber: ThinBoxSubscriber<Eventp>) -> io::Result<()> {
         let raw_fd = subscriber.as_fd().as_raw_fd();
-        let interests = subscriber.interests().get();
+        let interest = subscriber.interest().get();
 
         let addr = unsafe { mem::transmute_copy::<_, usize>(&subscriber) };
-        let epoll_event = EpollEvent::new(interests, addr as u64);
+        let epoll_event = EpollEvent::new(interest.bitflags(), addr as u64);
 
         self.epoll.add(subscriber.as_fd(), epoll_event)?;
         self.registered.insert(raw_fd, subscriber);
@@ -80,16 +86,16 @@ impl EventpLike for Eventp {
         Ok(())
     }
 
-    fn modify(&mut self, fd: RawFd, interests: EpollFlags) -> io::Result<()> {
+    fn modify(&mut self, fd: RawFd, interest: Interest) -> io::Result<()> {
         let subscriber = self
             .registered
             .get(&fd)
             .ok_or(io::Error::new(io::ErrorKind::NotFound, "fd not registered"))?;
         let addr = unsafe { mem::transmute_copy::<_, usize>(subscriber) };
-        let mut epoll_event = EpollEvent::new(interests, addr as u64);
+        let mut epoll_event = EpollEvent::new(interest.bitflags(), addr as u64);
 
         self.epoll.modify(subscriber.as_fd(), &mut epoll_event)?;
-        subscriber.interests().set(interests);
+        subscriber.interest().set(interest);
 
         Ok(())
     }
@@ -125,7 +131,7 @@ impl EventpLike for Eventp {
         }
 
         // Use `BorrowedBuf` instead, once it becomes stable.
-        let buf: &mut [MaybeUninit<EpollEvent>] = &mut self.buf;
+        let buf: &mut [MaybeUninit<EpollEvent>] = &mut self.event_buf;
         let buf: &mut [EpollEvent] = unsafe { mem::transmute(buf) };
 
         let n = self.epoll.wait(buf, timeout)?;
@@ -137,12 +143,12 @@ impl EventpLike for Eventp {
         });
         for ev in buf {
             let addr = ev.data() as usize;
-            let mut subscriber = unsafe { transmute::<usize, ThinBoxSubscriber>(addr) };
+            let mut subscriber = unsafe { transmute::<usize, ThinBoxSubscriber<Eventp>>(addr) };
             unsafe {
                 self.handling.as_mut().unwrap_unchecked().fd = subscriber.as_fd().as_raw_fd();
             }
 
-            subscriber.handle(ev.events(), self);
+            subscriber.handle(Event(ev.events()), self);
             mem::forget(subscriber);
         }
         let handling = unsafe { self.handling.take().unwrap_unchecked() };
