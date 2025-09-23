@@ -1,6 +1,7 @@
 use std::io::{self, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::os::fd::{AsFd, AsRawFd};
+use std::pin::Pin;
 
 use eventp::{interest, Event, Eventp, EventpLike, Subscriber};
 
@@ -16,6 +17,11 @@ fn main() -> io::Result<()> {
         .register_into(&mut eventp)?;
 
     eventp.run_forever()
+}
+
+fn a(listener: &mut impl Accept, eventp: Pin<&mut impl EventpLike>) {
+
+    eventp.add_pinned(subscriber)
 }
 
 fn on_connection(listener: &mut impl Accept, eventp: &mut impl EventpLike) {

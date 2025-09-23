@@ -39,6 +39,13 @@ struct Handling {
     to_remove: Vec<RawFd>,
 }
 
+impl Default for Eventp {
+    fn default() -> Self {
+        Self::new(DEFAULT_EVENT_BUF_CAPACITY, EpollCreateFlags::EPOLL_CLOEXEC)
+            .expect("Failed to create epoll instance")
+    }
+}
+
 impl Eventp {
     pub fn new(capacity: usize, flags: EpollCreateFlags) -> io::Result<Self> {
         let mut buf = Vec::with_capacity(capacity);
@@ -63,18 +70,70 @@ impl Eventp {
     pub fn into_inner(self) -> Epoll {
         self.epoll
     }
-}
 
-impl Default for Eventp {
-    fn default() -> Self {
-        Self::new(DEFAULT_EVENT_BUF_CAPACITY, EpollCreateFlags::EPOLL_CLOEXEC)
-            .expect("Failed to create epoll instance")
+    pub fn run_forever(&mut self) -> io::Result<()> {
+        loop {
+            match self.run_once() {
+                Ok(_) => continue,
+
+                // The only source of error is epoll_wait.
+                // Ref: https://man.archlinux.org/man/epoll_wait.2.en#ERRORS
+                Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+                Err(e) => return Err(e),
+            }
+        }
+    }
+
+    pub fn run_once(&mut self) -> io::Result<()> {
+        self.run_once_with_timeout(EpollTimeout::NONE)
+    }
+
+    pub fn run_once_with_timeout(&mut self, timeout: EpollTimeout) -> io::Result<()> {
+        if self.handling.is_some() {
+            panic!("Recursive call to Eventp::run_with_timeout");
+        }
+
+        // Use `BorrowedBuf` instead, once it becomes stable.
+        let buf: &mut [MaybeUninit<EpollEvent>] = &mut self.event_buf;
+        let buf: &mut [EpollEvent] = unsafe { mem::transmute(buf) };
+
+        let n = self.epoll.wait(buf, timeout)?;
+        let buf = &buf[..n];
+
+        self.handling = Some(Handling {
+            fd: -1,
+            to_remove: vec![],
+        });
+        for ev in buf {
+            let addr = ev.data() as usize;
+            let mut subscriber = unsafe { transmute::<usize, ThinBoxSubscriber<Eventp>>(addr) };
+            unsafe {
+                self.handling.as_mut().unwrap_unchecked().fd = subscriber.as_fd().as_raw_fd();
+            }
+
+            subscriber.handle(Event(ev.events()), self);
+            mem::forget(subscriber);
+        }
+        let handling = unsafe { self.handling.take().unwrap_unchecked() };
+
+        for fd in handling.to_remove {
+            self.registered.remove(&fd);
+        }
+
+        Ok(())
     }
 }
 
 impl EventpLike for Eventp {
     fn add(&mut self, subscriber: ThinBoxSubscriber<Eventp>) -> io::Result<()> {
         let raw_fd = subscriber.as_fd().as_raw_fd();
+
+        if let Some(handling) = &self.handling {
+            if handling.fd == raw_fd {
+                return Err(io::Error::other("Cannot add subscriber to the same fd at "));
+            }
+        }
+
         let interest = subscriber.interest().get();
 
         let addr = unsafe { mem::transmute_copy::<_, usize>(&subscriber) };
@@ -118,58 +177,6 @@ impl EventpLike for Eventp {
         } else {
             self.registered.remove(&fd);
         }
-        Ok(())
-    }
-
-    fn run_forever(&mut self) -> io::Result<()> {
-        loop {
-            match self.run_once() {
-                Ok(_) => continue,
-
-                // The only source of error is epoll_wait.
-                // Ref: https://man.archlinux.org/man/epoll_wait.2.en#ERRORS
-                Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
-                Err(e) => return Err(e),
-            }
-        }
-    }
-
-    fn run_once(&mut self) -> io::Result<()> {
-        self.run_once_with_timeout(EpollTimeout::NONE)
-    }
-
-    fn run_once_with_timeout(&mut self, timeout: EpollTimeout) -> io::Result<()> {
-        if self.handling.is_some() {
-            panic!("Recursive call to Eventp::run_with_timeout");
-        }
-
-        // Use `BorrowedBuf` instead, once it becomes stable.
-        let buf: &mut [MaybeUninit<EpollEvent>] = &mut self.event_buf;
-        let buf: &mut [EpollEvent] = unsafe { mem::transmute(buf) };
-
-        let n = self.epoll.wait(buf, timeout)?;
-        let buf = &buf[..n];
-
-        self.handling = Some(Handling {
-            fd: -1,
-            to_remove: vec![],
-        });
-        for ev in buf {
-            let addr = ev.data() as usize;
-            let mut subscriber = unsafe { transmute::<usize, ThinBoxSubscriber<Eventp>>(addr) };
-            unsafe {
-                self.handling.as_mut().unwrap_unchecked().fd = subscriber.as_fd().as_raw_fd();
-            }
-
-            subscriber.handle(Event(ev.events()), self);
-            mem::forget(subscriber);
-        }
-        let handling = unsafe { self.handling.take().unwrap_unchecked() };
-
-        for fd in handling.to_remove {
-            self.registered.remove(&fd);
-        }
-
         Ok(())
     }
 }
