@@ -18,6 +18,7 @@ use std::{io, ptr};
 
 use rustc_hash::FxHashMap;
 
+pub use crate::bin_subscriber::BinSubscriber;
 use crate::epoll::*;
 pub use crate::event::Event;
 pub use crate::eventp_ops::EventpOps;
@@ -28,7 +29,6 @@ pub use crate::registry::Registry;
 pub use crate::subscriber::{Handler, Subscriber, WithInterest};
 pub use crate::thinbox::ThinBoxSubscriber;
 pub use crate::tri_subscriber::{FdWithInterest, TriSubscriber};
-pub use crate::bin_subscriber::BinSubscriber;
 
 const DEFAULT_EVENT_BUF_CAPACITY: usize = 256;
 
