@@ -25,7 +25,7 @@ impl<E: EventpOps> Registry for &mut E {
 impl<E: EventpOps> Registry for Pin<&mut E> {
     type Ep = E;
 
-    fn register<S>(self, subscriber: S) -> io::Result<()>
+    fn register<S>(mut self, subscriber: S) -> io::Result<()>
     where
         S: Subscriber<Self::Ep>,
     {

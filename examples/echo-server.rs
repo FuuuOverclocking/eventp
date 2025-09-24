@@ -34,36 +34,38 @@ fn on_connection(listener: &mut impl Accept, eventp: Pin<&mut impl EventpOps>) {
 fn on_data(
     stream: &mut (impl Read + Write + AsFd),
     event: Event,
-    eventp: Pin<&mut impl EventpOps>,
+    mut eventp: Pin<&mut impl EventpOps>,
 ) {
-    if event.is_readable() {
-        let mut buf = [0; 512];
-        loop {
-            match stream.read(&mut buf) {
-                Ok(0) => {
-                    eventp
-                        .delete_pinned(stream.as_fd().as_raw_fd())
-                        .expect("delete from epoll failed");
-                    return;
-                }
-                Ok(n) => stream.write_all(&buf[..n]).expect("write failed"),
-                Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                    return;
-                }
-                Err(e) => {
-                    eprintln!("{}", e);
-                    eventp
-                        .delete_pinned(stream.as_fd().as_raw_fd())
-                        .expect("delete from epoll failed");
-                    return;
-                }
-            }
-        }
-    }
-    if event.is_error() || event.is_hangup() {
+    if event.is_error() {
         eventp
             .delete_pinned(stream.as_fd().as_raw_fd())
             .expect("delete from epoll failed");
+    }
+    if !event.is_readable() {
+        return;
+    }
+
+    let mut buf = [0; 512];
+    loop {
+        match stream.read(&mut buf) {
+            Ok(0) => {
+                eventp
+                    .delete_pinned(stream.as_fd().as_raw_fd())
+                    .expect("delete from epoll failed");
+                return;
+            }
+            Ok(n) => stream.write_all(&buf[..n]).expect("write failed"),
+            Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
+                return;
+            }
+            Err(e) => {
+                eprintln!("{}", e);
+                eventp
+                    .delete_pinned(stream.as_fd().as_raw_fd())
+                    .expect("delete from epoll failed");
+                return;
+            }
+        }
     }
 }
 
