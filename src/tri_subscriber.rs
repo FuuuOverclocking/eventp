@@ -23,7 +23,7 @@ impl<Fd: AsFd> FdWithInterest<Fd> {
     }
 }
 
-pub struct FnHandler<Args, F> {
+pub(crate) struct FnHandler<Args, F> {
     f: F,
     _marker: PhantomData<fn(Args)>,
 }
