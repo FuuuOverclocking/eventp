@@ -104,7 +104,10 @@ mockall::mock! {
 #[cfg(all(test, feature = "mock"))]
 mod tests {
     use std::io::ErrorKind;
+    use std::os::fd::BorrowedFd;
+    use std::pin::pin;
 
+    use eventp::epoll::EpollFlags;
     use eventp::MockEventp;
     use mockall::predicate::*;
 
@@ -123,20 +126,20 @@ mod tests {
         });
 
         mock_eventp
-            .expect_add()
+            .expect_add_pinned()
             .with(always())
             .times(1)
             .returning(|_| Ok(()));
 
         // 2. Act
-        on_connection(&mut mock_listener, &mut mock_eventp);
+        on_connection(&mut mock_listener, pin!(mock_eventp));
     }
 
     #[test]
     fn test_on_stream_read_and_write() {
         // 1. Setup
         let mut mock_stream = MockStream::new();
-        let mut mock_eventp = MockEventp::new();
+        let mock_eventp = MockEventp::new();
         let mut seq = mockall::Sequence::new();
 
         let data = b"hello";
@@ -166,7 +169,11 @@ mod tests {
             .returning(|_| Err(io::Error::new(ErrorKind::WouldBlock, "no more data")));
 
         // 2. Act
-        on_data(&mut mock_stream, EpollFlags::EPOLLIN, &mut mock_eventp);
+        on_data(
+            &mut mock_stream,
+            EpollFlags::EPOLLIN.into(),
+            pin!(mock_eventp),
+        );
     }
 
     #[test]
@@ -176,16 +183,23 @@ mod tests {
         let mut mock_eventp = MockEventp::new();
         let fd = 42;
 
-        mock_stream.expect_as_raw_fd().return_const(fd);
+        mock_stream
+            .expect_as_fd()
+            .returning(move || unsafe { BorrowedFd::borrow_raw(fd) });
         mock_stream.expect_read().times(1).returning(|_| Ok(0)); // EOF
+
         mock_eventp
-            .expect_delete()
+            .expect_delete_pinned()
             .with(eq(fd))
             .times(1)
             .returning(|_| Ok(()));
 
         // 2. Act
-        on_data(&mut mock_stream, EpollFlags::EPOLLIN, &mut mock_eventp);
+        on_data(
+            &mut mock_stream,
+            EpollFlags::EPOLLIN.into(),
+            pin!(mock_eventp),
+        );
     }
 
     #[test]
@@ -195,19 +209,26 @@ mod tests {
         let mut mock_eventp = MockEventp::new();
         let fd = 43;
 
-        mock_stream.expect_as_raw_fd().return_const(fd);
+        mock_stream
+            .expect_as_fd()
+            .returning(move || unsafe { BorrowedFd::borrow_raw(fd) });
         mock_stream
             .expect_read()
             .times(1)
             .returning(|_| Err(io::Error::new(ErrorKind::Other, "a real error")));
+
         mock_eventp
-            .expect_delete()
+            .expect_delete_pinned()
             .with(eq(fd))
             .times(1)
             .returning(|_| Ok(()));
 
         // 2. Act
-        on_data(&mut mock_stream, EpollFlags::EPOLLIN, &mut mock_eventp);
+        on_data(
+            &mut mock_stream,
+            EpollFlags::EPOLLIN.into(),
+            pin!(mock_eventp),
+        );
     }
 
     #[test]
@@ -217,12 +238,14 @@ mod tests {
         let mut mock_eventp = MockEventp::new();
         let fd = 44;
 
-        mock_stream.expect_as_raw_fd().return_const(fd);
+        mock_stream
+            .expect_as_fd()
+            .returning(move || unsafe { BorrowedFd::borrow_raw(fd) });
         mock_stream.expect_read().never();
         mock_stream.expect_write().never();
 
         mock_eventp
-            .expect_delete()
+            .expect_delete_pinned()
             .with(eq(fd))
             .times(1)
             .returning(|_| Ok(()));
@@ -230,8 +253,8 @@ mod tests {
         // 2. Act
         on_data(
             &mut mock_stream,
-            EpollFlags::EPOLLHUP | EpollFlags::EPOLLERR,
-            &mut mock_eventp,
+            (EpollFlags::EPOLLHUP | EpollFlags::EPOLLERR).into(),
+            pin!(mock_eventp),
         );
     }
 }

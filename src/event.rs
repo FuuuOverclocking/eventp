@@ -2,7 +2,13 @@ use crate::epoll::EpollFlags;
 
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(transparent)]
-pub struct Event(pub(crate) EpollFlags);
+pub struct Event(EpollFlags);
+
+impl From<EpollFlags> for Event {
+    fn from(value: EpollFlags) -> Self {
+        Self::new(value)
+    }
+}
 
 impl From<Event> for EpollFlags {
     fn from(value: Event) -> Self {
@@ -11,6 +17,10 @@ impl From<Event> for EpollFlags {
 }
 
 impl Event {
+    pub const fn new(flags: EpollFlags) -> Self {
+        Self(flags)
+    }
+
     /// Returns the underlying `EpollFlags` bitmask.
     pub const fn bitflags(&self) -> EpollFlags {
         self.0

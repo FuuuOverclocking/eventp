@@ -117,7 +117,7 @@ impl Eventp {
             }
             let interest = subscriber.interest().get();
 
-            subscriber.handle(Event(ev.events()), interest, unsafe {
+            subscriber.handle(ev.events().into(), interest, unsafe {
                 Pin::new_unchecked(self)
             });
             mem::forget(subscriber);
