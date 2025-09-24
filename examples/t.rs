@@ -8,6 +8,9 @@ use eventp::{Event, Eventp, EventpOps, Subscriber, ThinBoxSubscriber, TriSubscri
 
 fn main() {}
 
-fn test(a: TriSubscriber<TcpListener, (Event,), fn(Event)>, mut ep: Eventp) {
+fn test(
+    a: TriSubscriber<TcpListener, (&mut TcpListener, Event), fn(&mut TcpListener, Event)>,
+    mut ep: Eventp,
+) {
     ep.add(ThinBoxSubscriber::new(a));
 }

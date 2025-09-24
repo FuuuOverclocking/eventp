@@ -71,100 +71,46 @@ where
     }
 }
 
-// impl<Fd, F, Ep> Handler<Ep> for TriSubscriber<Fd, (<F as Call1<'_, '_, Fd, Ep>>::T1,), F>
-// where
-//     F: for<'a, 'b> Call1<'a, 'b, Fd, Ep>,
-//     Fd: AsFd,
-//     Ep: EventpOps,
-// {
-//     fn handle(&mut self, event: Event, interest: Interest, eventp: Pin<&mut Ep>) {
-//         let mut inputs = Inputs {
-//             fd: Some(&mut self.fd),
-//             event: Some(event),
-//             interest: Some(interest),
-//             eventp: Some(eventp),
-//         };
-//         (self.handler.f)(F::T1::from_inputs(&mut inputs))
-//     }
-// }
+impl<Ep, Fd, F> Handler<Ep> for TriSubscriber<Fd, (Event,), F>
+where
+    Ep: EventpOps,
+    Fd: AsFd,
+    F: FnMut(Event),
+{
+    fn handle(&mut self, event: Event, _interest: Interest, _eventp: Pin<&mut Ep>) {
+        (self.handler.f)(event)
+    }
+}
 
-// impl<Fd, F, E, T1, T2> Handler<E> for Subscriber1<Fd, (T1, T2), F>
-// where
-//     F: FnMut(T1, T2),
-//     Fd: AsFd,
-//     E: EventpOps,
-//     T1: for<'a, 'b> FromInputs<'a, 'b, Fd, E>,
-//     T2: for<'a, 'b> FromInputs<'a, 'b, Fd, E>,
-// {
-//     fn handle(&mut self, event: Event, interest: Interest, eventp: Pin<&mut E>) {
-//         let mut inputs = Inputs {
-//             fd: Some(&mut self.fd),
-//             event: Some(event),
-//             interest: Some(interest),
-//             eventp: Some(eventp),
-//         };
-//         (self.handler.f)(T1::from_inputs(&mut inputs), T2::from_inputs(&mut inputs))
-//     }
-// }
+impl<Ep, Fd, F> Handler<Ep> for TriSubscriber<Fd, (Interest,), F>
+where
+    Ep: EventpOps,
+    Fd: AsFd,
+    F: FnMut(Interest),
+{
+    fn handle(&mut self, _event: Event, interest: Interest, _eventp: Pin<&mut Ep>) {
+        (self.handler.f)(interest)
+    }
+}
 
-// impl<Fd, F, E, T1, T2, T3> Handler<E> for Subscriber1<Fd, (T1, T2, T3), F>
-// where
-//     F: FnMut(T1, T2, T3),
-//     Fd: AsFd,
-//     E: EventpOps,
-//     T1: for<'a, 'b> FromInputs<'a, 'b, Fd, E>,
-//     T2: for<'a, 'b> FromInputs<'a, 'b, Fd, E>,
-//     T3: for<'a, 'b> FromInputs<'a, 'b, Fd, E>,
-// {
-//     fn handle(&mut self, event: Event, interest: Interest, eventp: Pin<&mut E>) {
-//         let mut inputs = Inputs {
-//             fd: Some(&mut self.fd),
-//             event: Some(event),
-//             interest: Some(interest),
-//             eventp: Some(eventp),
-//         };
-//         (self.handler.f)(
-//             T1::from_inputs(&mut inputs),
-//             T2::from_inputs(&mut inputs),
-//             T3::from_inputs(&mut inputs),
-//         )
-//     }
-// }
+impl<Ep, Fd, F> Handler<Ep> for TriSubscriber<Fd, (Pin<&mut Ep>,), F>
+where
+    Ep: EventpOps,
+    Fd: AsFd,
+    F: FnMut(Pin<&mut Ep>),
+{
+    fn handle(&mut self, _event: Event, _interest: Interest, eventp: Pin<&mut Ep>) {
+        (self.handler.f)(eventp)
+    }
+}
 
-// impl<Fd, F, E, T1, T2, T3, T4> Handler<E> for Subscriber1<Fd, (T1, T2, T3, T4), F>
-// where
-//     F: FnMut(T1, T2, T3, T4),
-//     Fd: AsFd,
-//     E: EventpOps,
-//     T1: for<'a, 'b> FromInputs<'a, 'b, Fd, E>,
-//     T2: for<'a, 'b> FromInputs<'a, 'b, Fd, E>,
-//     T3: for<'a, 'b> FromInputs<'a, 'b, Fd, E>,
-//     T4: for<'a, 'b> FromInputs<'a, 'b, Fd, E>,
-// {
-//     fn handle(&mut self, event: Event, interest: Interest, eventp: Pin<&mut E>) {
-//         let mut inputs = Inputs {
-//             fd: Some(&mut self.fd),
-//             event: Some(event),
-//             interest: Some(interest),
-//             eventp: Some(eventp),
-//         };
-//         (self.handler.f)(
-//             T1::from_inputs(&mut inputs),
-//             T2::from_inputs(&mut inputs),
-//             T3::from_inputs(&mut inputs),
-//             T4::from_inputs(&mut inputs),
-//         )
-//     }
-// }
-
-// // 123
-// impl<Fd, F, E> Handler<E> for Subscriber1<Fd, (&mut Fd, Event, &mut E), F>
-// where
-//     F: FnMut(&mut Fd, Event, &mut E),
-//     Fd: AsFd,
-//     E: EventpOps,
-// {
-//     fn handle(&mut self, event: Event, eventp: &mut E) {
-//         (self.handler.f)(&mut self.fd, event, eventp)
-//     }
-// }
+impl<Ep, Fd, F> Handler<Ep> for TriSubscriber<Fd, (&mut Fd, Event,), F>
+where
+    Ep: EventpOps,
+    Fd: AsFd,
+    F: FnMut(&mut Fd, Event),
+{
+    fn handle(&mut self, event: Event, _interest: Interest, _eventp: Pin<&mut Ep>) {
+        (self.handler.f)(&mut self.fd, event)
+    }
+}
