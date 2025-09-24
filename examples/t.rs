@@ -1,19 +1,13 @@
 #![allow(unused)]
 #![allow(clippy::type_complexity)]
 
-use std::{net::TcpListener, pin::Pin};
+use std::net::TcpListener;
+use std::pin::Pin;
 
-use eventp::{Eventp, EventpOps, Subscriber, Subscriber1, ThinBoxSubscriber};
+use eventp::{Event, Eventp, EventpOps, Subscriber, ThinBoxSubscriber, TriSubscriber};
 
 fn main() {}
 
-fn test(
-    a: Subscriber1<
-        TcpListener,
-        (&mut TcpListener,),
-        fn(&mut TcpListener),
-    >,
-    mut ep: Eventp,
-) {
+fn test(a: TriSubscriber<TcpListener, (Event,), fn(Event)>, mut ep: Eventp) {
     ep.add(ThinBoxSubscriber::new(a));
 }

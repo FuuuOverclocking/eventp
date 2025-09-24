@@ -9,7 +9,7 @@ use std::cell::Cell;
 use std::os::fd::AsFd;
 
 use crate::epoll::EpollFlags;
-use crate::{EventpOps, FdWithInterest, Handler, Subscriber2};
+use crate::{BinSubscriber, EventpOps, FdWithInterest, Handler};
 
 /// Represents interest in I/O readiness events.
 ///
@@ -79,12 +79,12 @@ impl Interest {
     /// Combines this `Interest` with a handler to create a full `Subscriber`.
     ///
     /// This finalizes the setup for a subscribable I/O source.
-    pub const fn with_fd_and_handler<S, E>(self, fd_with_handler: S) -> Subscriber2<S>
+    pub const fn with_fd_and_handler<S, E>(self, fd_with_handler: S) -> BinSubscriber<S>
     where
         S: AsFd + Handler<E>,
         E: EventpOps,
     {
-        Subscriber2 {
+        BinSubscriber {
             interest: Cell::new(self),
             fd_with_handler,
         }

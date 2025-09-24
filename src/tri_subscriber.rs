@@ -11,8 +11,8 @@ pub struct FdWithInterest<Fd> {
 }
 
 impl<Fd: AsFd> FdWithInterest<Fd> {
-    pub fn with_handler<T, F>(self, f: F) -> Subscriber1<Fd, T, F> {
-        Subscriber1 {
+    pub fn with_handler<T, F>(self, f: F) -> TriSubscriber<Fd, T, F> {
+        TriSubscriber {
             fd: self.fd,
             interest: Cell::new(self.interest),
             handler: FnHandler {
@@ -28,13 +28,13 @@ pub struct FnHandler<Args, F> {
     _marker: PhantomData<fn(Args)>,
 }
 
-pub struct Subscriber1<Fd, Args, F> {
+pub struct TriSubscriber<Fd, Args, F> {
     pub(crate) fd: Fd,
     pub(crate) interest: Cell<Interest>,
     pub(crate) handler: FnHandler<Args, F>,
 }
 
-impl<Fd, Args, F> AsFd for Subscriber1<Fd, Args, F>
+impl<Fd, Args, F> AsFd for TriSubscriber<Fd, Args, F>
 where
     Fd: AsFd,
 {
@@ -43,92 +43,50 @@ where
     }
 }
 
-impl<Fd, Args, F> WithInterest for Subscriber1<Fd, Args, F> {
+impl<Fd, Args, F> WithInterest for TriSubscriber<Fd, Args, F> {
     fn interest(&self) -> &Cell<Interest> {
         &self.interest
     }
 }
 
-pub struct Inputs<'fd, 'ep, Fd, Ep> {
-    fd: Option<&'fd mut Fd>,
-    event: Option<Event>,
-    interest: Option<Interest>,
-    eventp: Option<Pin<&'ep mut Ep>>,
-}
-
-pub trait FromInputs<'fd, 'ep, Fd, Ep> {
-    fn from_inputs(inputs: &mut Inputs<'fd, 'ep, Fd, Ep>) -> Self;
-}
-
-impl<'fd, 'ep, Fd, Ep> FromInputs<'fd, 'ep, Fd, Ep> for &'fd mut Fd {
-    fn from_inputs(inputs: &mut Inputs<'fd, 'ep, Fd, Ep>) -> Self {
-        inputs
-            .fd
-            .take()
-            .expect("The same type parameter declared multiple times.")
-    }
-}
-
-impl<'fd, 'ep, Fd, Ep> FromInputs<'fd, 'ep, Fd, Ep> for Event {
-    fn from_inputs(inputs: &mut Inputs<'fd, 'ep, Fd, Ep>) -> Self {
-        inputs
-            .event
-            .take()
-            .expect("The same type parameter declared multiple times.")
-    }
-}
-
-impl<'fd, 'ep, Fd, Ep> FromInputs<'fd, 'ep, Fd, Ep> for Interest {
-    fn from_inputs(inputs: &mut Inputs<'fd, 'ep, Fd, Ep>) -> Self {
-        inputs
-            .interest
-            .take()
-            .expect("The same type parameter declared multiple times.")
-    }
-}
-
-impl<'fd, 'ep, Fd, Ep> FromInputs<'fd, 'ep, Fd, Ep> for Pin<&'ep mut Ep> {
-    fn from_inputs(inputs: &mut Inputs<'fd, 'ep, Fd, Ep>) -> Self {
-        inputs
-            .eventp
-            .take()
-            .expect("The same type parameter declared multiple times.")
-    }
-}
-
-impl<Fd, F, E> Handler<E> for Subscriber1<Fd, (), F>
+impl<Ep, Fd, F> Handler<Ep> for TriSubscriber<Fd, (), F>
 where
-    F: FnMut(),
+    Ep: EventpOps,
     Fd: AsFd,
-    E: EventpOps,
+    F: FnMut(),
 {
-    fn handle(&mut self, _event: Event, _interest: Interest, _eventp: Pin<&mut E>) {
+    fn handle(&mut self, _event: Event, _interest: Interest, _eventp: Pin<&mut Ep>) {
         (self.handler.f)()
     }
 }
 
-pub trait Call1<'a, 'b, Fd, Ep>: FnMut(Self::T1) {
-    type T1: FromInputs<'a, 'b, Fd, Ep>;
-}
-
-// impl<'a, 'b, Fd, Ep> Call1<'a, 'b, Fd, Ep> for fn 
-
-impl<Fd, F, Ep> Handler<Ep> for Subscriber1<Fd, (<F as Call1<'_, '_, Fd, Ep>>::T1,), F>
+impl<Ep, Fd, F> Handler<Ep> for TriSubscriber<Fd, (&mut Fd,), F>
 where
-    F: for<'a, 'b> Call1<'a, 'b, Fd, Ep>,
-    Fd: AsFd,
     Ep: EventpOps,
+    Fd: AsFd,
+    F: FnMut(&mut Fd),
 {
-    fn handle(&mut self, event: Event, interest: Interest, eventp: Pin<&mut Ep>) {
-        let mut inputs = Inputs {
-            fd: Some(&mut self.fd),
-            event: Some(event),
-            interest: Some(interest),
-            eventp: Some(eventp),
-        };
-        (self.handler.f)(F::T1::from_inputs(&mut inputs))
+    fn handle(&mut self, _event: Event, _interest: Interest, _eventp: Pin<&mut Ep>) {
+        (self.handler.f)(&mut self.fd)
     }
 }
+
+// impl<Fd, F, Ep> Handler<Ep> for TriSubscriber<Fd, (<F as Call1<'_, '_, Fd, Ep>>::T1,), F>
+// where
+//     F: for<'a, 'b> Call1<'a, 'b, Fd, Ep>,
+//     Fd: AsFd,
+//     Ep: EventpOps,
+// {
+//     fn handle(&mut self, event: Event, interest: Interest, eventp: Pin<&mut Ep>) {
+//         let mut inputs = Inputs {
+//             fd: Some(&mut self.fd),
+//             event: Some(event),
+//             interest: Some(interest),
+//             eventp: Some(eventp),
+//         };
+//         (self.handler.f)(F::T1::from_inputs(&mut inputs))
+//     }
+// }
 
 // impl<Fd, F, E, T1, T2> Handler<E> for Subscriber1<Fd, (T1, T2), F>
 // where
@@ -210,26 +168,3 @@ where
 //         (self.handler.f)(&mut self.fd, event, eventp)
 //     }
 // }
-
-pub struct Subscriber2<S> {
-    pub(crate) interest: Cell<Interest>,
-    pub(crate) fd_with_handler: S,
-}
-
-impl<S> WithInterest for Subscriber2<S> {
-    fn interest(&self) -> &Cell<Interest> {
-        &self.interest
-    }
-}
-
-impl<S: AsFd> AsFd for Subscriber2<S> {
-    fn as_fd(&self) -> BorrowedFd<'_> {
-        self.fd_with_handler.as_fd()
-    }
-}
-
-impl<S: AsFd + Handler<E>, E: EventpOps> Handler<E> for Subscriber2<S> {
-    fn handle(&mut self, event: Event, interest: Interest, eventp: Pin<&mut E>) {
-        self.fd_with_handler.handle(event, interest, eventp);
-    }
-}

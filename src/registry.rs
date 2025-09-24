@@ -1,4 +1,5 @@
-use std::{io, pin::Pin};
+use std::io;
+use std::pin::Pin;
 
 use crate::{EventpOps, Subscriber, ThinBoxSubscriber};
 

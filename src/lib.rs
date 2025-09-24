@@ -1,10 +1,11 @@
-mod builder;
+mod bin_subscriber;
 mod event;
 mod eventp_ops;
 mod interest;
+mod registry;
 mod subscriber;
 mod thinbox;
-mod registry;
+mod tri_subscriber;
 
 pub mod epoll {
     pub use nix::sys::epoll::{Epoll, EpollCreateFlags, EpollEvent, EpollFlags, EpollTimeout};
@@ -17,16 +18,17 @@ use std::{io, ptr};
 
 use rustc_hash::FxHashMap;
 
-pub use crate::builder::{FdWithInterest, Subscriber1, Subscriber2};
 use crate::epoll::*;
 pub use crate::event::Event;
 pub use crate::eventp_ops::EventpOps;
 #[cfg(feature = "mock")]
 pub use crate::eventp_ops::MockEventpOps as MockEventp;
 pub use crate::interest::{interest, Interest};
+pub use crate::registry::Registry;
 pub use crate::subscriber::{Handler, Subscriber, WithInterest};
 pub use crate::thinbox::ThinBoxSubscriber;
-pub use crate::registry::Registry;
+pub use crate::tri_subscriber::{FdWithInterest, TriSubscriber};
+pub use crate::bin_subscriber::BinSubscriber;
 
 const DEFAULT_EVENT_BUF_CAPACITY: usize = 256;
 
