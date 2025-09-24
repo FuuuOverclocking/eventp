@@ -4,6 +4,7 @@ mod eventp_ops;
 mod interest;
 mod subscriber;
 mod thinbox;
+mod registry;
 
 pub mod epoll {
     pub use nix::sys::epoll::{Epoll, EpollCreateFlags, EpollEvent, EpollFlags, EpollTimeout};
@@ -11,6 +12,7 @@ pub mod epoll {
 
 use std::mem::{self, transmute, MaybeUninit};
 use std::os::fd::{AsRawFd, RawFd};
+use std::pin::Pin;
 use std::{io, ptr};
 
 use rustc_hash::FxHashMap;
@@ -24,6 +26,7 @@ pub use crate::eventp_ops::MockEventpOps as MockEventp;
 pub use crate::interest::{interest, Interest};
 pub use crate::subscriber::{Handler, Subscriber, WithInterest};
 pub use crate::thinbox::ThinBoxSubscriber;
+pub use crate::registry::Registry;
 
 const DEFAULT_EVENT_BUF_CAPACITY: usize = 256;
 
@@ -110,8 +113,11 @@ impl Eventp {
             unsafe {
                 self.handling.as_mut().unwrap_unchecked().fd = subscriber.as_fd().as_raw_fd();
             }
+            let interest = subscriber.interest().get();
 
-            subscriber.handle(Event(ev.events()), self);
+            subscriber.handle(Event(ev.events()), interest, unsafe {
+                Pin::new_unchecked(self)
+            });
             mem::forget(subscriber);
         }
         let handling = unsafe { self.handling.take().unwrap_unchecked() };
