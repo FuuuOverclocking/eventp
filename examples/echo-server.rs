@@ -3,7 +3,7 @@ use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::os::fd::{AsFd, AsRawFd};
 use std::pin::Pin;
 
-use eventp::{interest, Event, Eventp, EventpOps, Subscriber};
+use eventp::{interest, Event, Eventp, EventpOps, Interest, Subscriber};
 
 fn main() -> io::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:3000")?;
@@ -32,9 +32,11 @@ fn on_connection(listener: &mut impl Accept, eventp: Pin<&mut impl EventpOps>) {
 }
 
 fn on_data(
-    stream: &mut (impl Read + Write + AsFd),
-    event: Event,
+    // Place any parameters you like, in any order.
+    _interest: Interest,
     mut eventp: Pin<&mut impl EventpOps>,
+    event: Event,
+    stream: &mut (impl Read + Write + AsFd),
 ) {
     if event.is_error() {
         eventp
@@ -172,6 +174,7 @@ mod tests {
 
         // 2. Act
         on_data(
+            Interest::default(),
             &mut mock_stream,
             EpollFlags::EPOLLIN.into(),
             pin!(mock_eventp),
@@ -198,6 +201,7 @@ mod tests {
 
         // 2. Act
         on_data(
+            Interest::default(),
             &mut mock_stream,
             EpollFlags::EPOLLIN.into(),
             pin!(mock_eventp),
@@ -227,6 +231,7 @@ mod tests {
 
         // 2. Act
         on_data(
+            Interest::default(),
             &mut mock_stream,
             EpollFlags::EPOLLIN.into(),
             pin!(mock_eventp),
@@ -254,6 +259,7 @@ mod tests {
 
         // 2. Act
         on_data(
+            Interest::default(),
             &mut mock_stream,
             (EpollFlags::EPOLLHUP | EpollFlags::EPOLLERR).into(),
             pin!(mock_eventp),
