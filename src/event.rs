@@ -4,6 +4,12 @@ use crate::epoll::EpollFlags;
 #[repr(transparent)]
 pub struct Event(pub(crate) EpollFlags);
 
+impl From<Event> for EpollFlags {
+    fn from(value: Event) -> Self {
+        value.bitflags()
+    }
+}
+
 impl Event {
     /// Returns the underlying `EpollFlags` bitmask.
     pub const fn bitflags(&self) -> EpollFlags {

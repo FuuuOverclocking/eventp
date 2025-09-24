@@ -40,6 +40,18 @@ impl Default for Interest {
     }
 }
 
+impl From<EpollFlags> for Interest {
+    fn from(value: EpollFlags) -> Self {
+        Self::new(value)
+    }
+}
+
+impl From<Interest> for EpollFlags {
+    fn from(value: Interest) -> Self {
+        value.bitflags()
+    }
+}
+
 impl Interest {
     /// Creates a new `Interest` from raw `EpollFlags`.
     ///
