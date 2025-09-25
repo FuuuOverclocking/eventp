@@ -1,0 +1,28 @@
+use std::cell::Cell;
+use std::os::fd::{AsFd, BorrowedFd};
+use std::pin::Pin;
+
+use crate::{Event, EventpOps, Handler, Interest, WithInterest};
+
+pub struct BinSubscriber<S> {
+    pub(crate) interest: Cell<Interest>,
+    pub(crate) fd_with_handler: S,
+}
+
+impl<S> WithInterest for BinSubscriber<S> {
+    fn interest(&self) -> &Cell<Interest> {
+        &self.interest
+    }
+}
+
+impl<S: AsFd> AsFd for BinSubscriber<S> {
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.fd_with_handler.as_fd()
+    }
+}
+
+impl<S: AsFd + Handler<E>, E: EventpOps> Handler<E> for BinSubscriber<S> {
+    fn handle(&mut self, event: Event, interest: Interest, eventp: Pin<&mut E>) {
+        self.fd_with_handler.handle(event, interest, eventp);
+    }
+}
