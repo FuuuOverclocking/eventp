@@ -2,6 +2,13 @@
 name = "eventp"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+repository = "https://github.com/FuuuOverclocking/eventp"
+authors = ["Fuu g.for.xyz@gmail.com"]
+keywords = ["epoll", "event", "event-loop", "linux", "event-manager"]
+description = """
+A high-performance Linux event loop library built on epoll with type-safe interest registration and flexible event handling
+"""
 
 [dependencies]
 bitflags = "2.9"
