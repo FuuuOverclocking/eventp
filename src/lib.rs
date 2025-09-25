@@ -12,6 +12,16 @@ pub mod epoll {
     pub use nix::sys::epoll::{Epoll, EpollCreateFlags, EpollEvent, EpollFlags, EpollTimeout};
 }
 
+#[cfg(docsrs)]
+pub mod _technical {
+    #![doc = include_str!("../docs/technical.md")]
+}
+
+#[cfg(docsrs)]
+pub mod _technical_zh {
+    #![doc = include_str!("../docs/technical.zh.md")]
+}
+
 use std::marker::PhantomPinned;
 use std::mem::{self, transmute, MaybeUninit};
 use std::os::fd::{AsRawFd, RawFd};
