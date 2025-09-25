@@ -4,13 +4,14 @@ mod eventp_ops;
 mod interest;
 mod registry;
 mod subscriber;
-mod thinbox;
+mod thin;
 mod tri_subscriber;
 
 pub mod epoll {
     pub use nix::sys::epoll::{Epoll, EpollCreateFlags, EpollEvent, EpollFlags, EpollTimeout};
 }
 
+use std::marker::PhantomPinned;
 use std::mem::{self, transmute, MaybeUninit};
 use std::os::fd::{AsRawFd, RawFd};
 use std::pin::Pin;
@@ -37,6 +38,7 @@ pub struct Eventp {
     epoll: Epoll,
     event_buf: Vec<MaybeUninit<EpollEvent>>,
     handling: Option<Handling>,
+    _pinned: PhantomPinned,
 }
 
 struct Handling {
@@ -61,6 +63,7 @@ impl Eventp {
             registered: Default::default(),
             event_buf: buf,
             handling: None,
+            _pinned: PhantomPinned,
         })
     }
 
