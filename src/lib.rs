@@ -2,6 +2,7 @@ mod bin_subscriber;
 mod event;
 mod eventp_ops;
 mod interest;
+mod pinned;
 mod registry;
 mod subscriber;
 mod thin;
@@ -24,11 +25,12 @@ use crate::epoll::*;
 pub use crate::event::Event;
 pub use crate::eventp_ops::EventpOps;
 #[cfg(feature = "mock")]
-pub use crate::eventp_ops::MockEventpOps as MockEventp;
+pub use crate::eventp_ops::MockEventp;
 pub use crate::interest::{interest, Interest};
+pub use crate::pinned::Pinned;
 pub use crate::registry::Registry;
 pub use crate::subscriber::{Handler, Subscriber, WithInterest};
-pub use crate::thinbox::ThinBoxSubscriber;
+pub use crate::thin::ThinBoxSubscriber;
 pub use crate::tri_subscriber::{FdWithInterest, TriSubscriber};
 
 const DEFAULT_EVENT_BUF_CAPACITY: usize = 256;
@@ -120,9 +122,11 @@ impl Eventp {
             }
             let interest = subscriber.interest().get();
 
-            subscriber.handle(ev.events().into(), interest, unsafe {
-                Pin::new_unchecked(self)
-            });
+            subscriber.handle(
+                ev.events().into(),
+                interest,
+                Pinned(unsafe { Pin::new_unchecked(self) }),
+            );
             mem::forget(subscriber);
         }
         let handling = unsafe { self.handling.take().unwrap_unchecked() };

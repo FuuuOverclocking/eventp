@@ -1,9 +1,8 @@
 use std::io::{self, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::os::fd::{AsFd, AsRawFd};
-use std::pin::Pin;
 
-use eventp::{interest, Event, Eventp, EventpOps, Interest, Subscriber};
+use eventp::{interest, Event, Eventp, EventpOps, Interest, Pinned, Subscriber};
 
 fn main() -> io::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:3000")?;
@@ -19,7 +18,7 @@ fn main() -> io::Result<()> {
     eventp.run_forever()
 }
 
-fn on_connection(listener: &mut impl Accept, eventp: Pin<&mut impl EventpOps>) {
+fn on_connection(listener: &mut impl Accept, mut eventp: Pinned<impl EventpOps>) {
     let (stream, _) = listener.accept().expect("accept failed");
 
     interest()
@@ -27,20 +26,20 @@ fn on_connection(listener: &mut impl Accept, eventp: Pin<&mut impl EventpOps>) {
         .read()
         .with_fd(stream)
         .with_handler(on_data)
-        .register_into(eventp)
+        .register_into(&mut eventp)
         .expect("add to epoll failed");
 }
 
 fn on_data(
     // Place any parameters you like, in any order.
     _interest: Interest,
-    mut eventp: Pin<&mut impl EventpOps>,
+    mut eventp: Pinned<impl EventpOps>,
     event: Event,
     stream: &mut (impl Read + Write + AsFd),
 ) {
     if event.is_error() {
         eventp
-            .delete_pinned(stream.as_fd().as_raw_fd())
+            .delete(stream.as_fd().as_raw_fd())
             .expect("delete from epoll failed");
     }
     if !event.is_readable() {
@@ -52,7 +51,7 @@ fn on_data(
         match stream.read(&mut buf) {
             Ok(0) => {
                 eventp
-                    .delete_pinned(stream.as_fd().as_raw_fd())
+                    .delete(stream.as_fd().as_raw_fd())
                     .expect("delete from epoll failed");
                 return;
             }
@@ -63,7 +62,7 @@ fn on_data(
             Err(e) => {
                 eprintln!("{}", e);
                 eventp
-                    .delete_pinned(stream.as_fd().as_raw_fd())
+                    .delete(stream.as_fd().as_raw_fd())
                     .expect("delete from epoll failed");
                 return;
             }
@@ -109,10 +108,9 @@ mockall::mock! {
 mod tests {
     use std::io::ErrorKind;
     use std::os::fd::BorrowedFd;
-    use std::pin::pin;
 
     use eventp::epoll::EpollFlags;
-    use eventp::MockEventp;
+    use eventp::{pinned, MockEventp};
     use mockall::predicate::*;
 
     use super::*;
@@ -130,13 +128,13 @@ mod tests {
         });
 
         mock_eventp
-            .expect_add_pinned()
+            .expect_add()
             .with(always())
             .times(1)
             .returning(|_| Ok(()));
 
         // 2. Act
-        on_connection(&mut mock_listener, pin!(mock_eventp));
+        on_connection(&mut mock_listener, pinned!(mock_eventp));
     }
 
     #[test]
@@ -175,9 +173,9 @@ mod tests {
         // 2. Act
         on_data(
             Interest::default(),
-            &mut mock_stream,
+            pinned!(mock_eventp),
             EpollFlags::EPOLLIN.into(),
-            pin!(mock_eventp),
+            &mut mock_stream,
         );
     }
 
@@ -194,7 +192,7 @@ mod tests {
         mock_stream.expect_read().times(1).returning(|_| Ok(0)); // EOF
 
         mock_eventp
-            .expect_delete_pinned()
+            .expect_delete()
             .with(eq(fd))
             .times(1)
             .returning(|_| Ok(()));
@@ -202,9 +200,9 @@ mod tests {
         // 2. Act
         on_data(
             Interest::default(),
-            &mut mock_stream,
+            pinned!(mock_eventp),
             EpollFlags::EPOLLIN.into(),
-            pin!(mock_eventp),
+            &mut mock_stream,
         );
     }
 
@@ -224,7 +222,7 @@ mod tests {
             .returning(|_| Err(io::Error::new(ErrorKind::Other, "a real error")));
 
         mock_eventp
-            .expect_delete_pinned()
+            .expect_delete()
             .with(eq(fd))
             .times(1)
             .returning(|_| Ok(()));
@@ -232,9 +230,9 @@ mod tests {
         // 2. Act
         on_data(
             Interest::default(),
-            &mut mock_stream,
+            pinned!(mock_eventp),
             EpollFlags::EPOLLIN.into(),
-            pin!(mock_eventp),
+            &mut mock_stream,
         );
     }
 
@@ -252,7 +250,7 @@ mod tests {
         mock_stream.expect_write().never();
 
         mock_eventp
-            .expect_delete_pinned()
+            .expect_delete()
             .with(eq(fd))
             .times(1)
             .returning(|_| Ok(()));
@@ -260,9 +258,9 @@ mod tests {
         // 2. Act
         on_data(
             Interest::default(),
-            &mut mock_stream,
+            pinned!(mock_eventp),
             (EpollFlags::EPOLLHUP | EpollFlags::EPOLLERR).into(),
-            pin!(mock_eventp),
+            &mut mock_stream,
         );
     }
 }

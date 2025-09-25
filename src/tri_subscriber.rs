@@ -1,9 +1,8 @@
 use std::cell::Cell;
 use std::marker::PhantomData;
 use std::os::fd::{AsFd, BorrowedFd};
-use std::pin::Pin;
 
-use crate::{Event, EventpOps, Handler, Interest, WithInterest};
+use crate::{Event, EventpOps, Handler, Interest, Pinned, WithInterest};
 
 pub struct FdWithInterest<Fd> {
     pub(crate) fd: Fd,
@@ -55,7 +54,7 @@ where
     Fd: AsFd,
     F: FnMut(),
 {
-    fn handle(&mut self, _event: Event, _interest: Interest, _eventp: Pin<&mut Ep>) {
+    fn handle(&mut self, _event: Event, _interest: Interest, _eventp: Pinned<'_, Ep>) {
         (self.handler.f)()
     }
 }
@@ -64,7 +63,7 @@ macro_rules! expand_param_type {
     (fd) => { &mut Fd };
     (event) => { crate::Event };
     (interest) => { crate::Interest };
-    (eventp) => { std::pin::Pin<&mut Ep> };
+    (eventp) => { Pinned<'_, Ep> };
 }
 
 macro_rules! impl_handler {
@@ -92,7 +91,7 @@ macro_rules! impl_handler {
             F: FnMut( $( expand_param_type!($param), )* ),
         {
             #[allow(unused_variables)]
-            fn handle(&mut self, event: Event, interest: Interest, eventp: Pin<&mut Ep>) {
+            fn handle(&mut self, event: Event, interest: Interest, eventp: Pinned<'_, Ep>) {
                 impl_handler!(@build_call (self, event, interest, eventp) -> @args() $($param,)*);
             }
         }

@@ -1,12 +1,11 @@
 use std::cell::Cell;
 use std::io;
 use std::os::fd::AsFd;
-use std::pin::Pin;
 
-use crate::{Event, EventpOps, Interest, Registry};
+use crate::{Event, EventpOps, Interest, Pinned, Registry};
 
 pub trait Subscriber<E: EventpOps>: AsFd + WithInterest + Handler<E> {
-    fn register_into<R>(self, eventp: R) -> io::Result<()>
+    fn register_into<R>(self, eventp: &mut R) -> io::Result<()>
     where
         Self: Sized,
         R: Registry<Ep = E>,
@@ -27,5 +26,5 @@ pub trait WithInterest {
 }
 
 pub trait Handler<E: EventpOps> {
-    fn handle(&mut self, event: Event, interest: Interest, eventp: Pin<&mut E>);
+    fn handle(&mut self, event: Event, interest: Interest, eventp: Pinned<'_, E>);
 }

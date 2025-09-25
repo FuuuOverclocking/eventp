@@ -1,27 +1,21 @@
 use std::io;
 use std::os::fd::RawFd;
-use std::pin::Pin;
 
 use crate::{Interest, ThinBoxSubscriber};
 
-#[cfg_attr(feature = "mock", mockall::automock)]
 pub trait EventpOps: Sized {
     fn add(&mut self, subscriber: ThinBoxSubscriber<Self>) -> io::Result<()>;
     fn modify(&mut self, fd: RawFd, interest: Interest) -> io::Result<()>;
     fn delete(&mut self, fd: RawFd) -> io::Result<()>;
+}
 
-    fn add_pinned(
-        self: &mut Pin<&mut Self>,
-        subscriber: ThinBoxSubscriber<Self>,
-    ) -> io::Result<()> {
-        unsafe { self.as_mut().get_unchecked_mut().add(subscriber) }
-    }
+#[cfg(feature = "mock")]
+mockall::mock! {
+    pub Eventp {}
 
-    fn modify_pinned(self: &mut Pin<&mut Self>, fd: RawFd, interest: Interest) -> io::Result<()> {
-        unsafe { self.as_mut().get_unchecked_mut().modify(fd, interest) }
-    }
-
-    fn delete_pinned(self: &mut Pin<&mut Self>, fd: RawFd) -> io::Result<()> {
-        unsafe { self.as_mut().get_unchecked_mut().delete(fd) }
+    impl EventpOps for Eventp {
+        fn add(&mut self, subscriber: ThinBoxSubscriber<Self>) -> io::Result<()>;
+        fn modify(&mut self, fd: RawFd, interest: Interest) -> io::Result<()>;
+        fn delete(&mut self, fd: RawFd) -> io::Result<()>;
     }
 }
