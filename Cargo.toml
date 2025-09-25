@@ -11,7 +11,6 @@ A high-performance Linux event loop library built on epoll with type-safe intere
 """
 
 [dependencies]
-bitflags = "2.9"
 libc = "0.2"
 mockall = { version = "0.13", optional = true }
 nix = { version = "0.30", features = ["event"] }
