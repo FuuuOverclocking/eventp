@@ -36,12 +36,12 @@ pub use crate::event::Event;
 pub use crate::eventp_ops::EventpOps;
 #[cfg(feature = "mock")]
 pub use crate::eventp_ops::MockEventp;
-pub use crate::interest::{interest, Interest};
+pub use crate::interest::{interest, Interest, WithFd, WithHandler};
 pub use crate::pinned::Pinned;
 pub use crate::registry::Registry;
 pub use crate::subscriber::{Handler, Subscriber, WithInterest};
 pub use crate::thin::ThinBoxSubscriber;
-pub use crate::tri_subscriber::{FdWithInterest, TriSubscriber};
+pub use crate::tri_subscriber::TriSubscriber;
 
 const DEFAULT_EVENT_BUF_CAPACITY: usize = 256;
 

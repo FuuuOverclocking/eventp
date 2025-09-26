@@ -2,7 +2,7 @@ use std::io::{self, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::os::fd::{AsFd, AsRawFd};
 
-use eventp::{interest, Event, Eventp, EventpOps, Interest, Pinned, Subscriber};
+use eventp::{interest, Event, Eventp, EventpOps, Interest, Pinned, Subscriber, WithHandler, WithFd};
 
 fn main() -> io::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:3000")?;

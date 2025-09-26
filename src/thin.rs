@@ -11,16 +11,16 @@ use crate::{Eventp, EventpOps, Subscriber};
 #[cfg(not(target_pointer_width = "64"))]
 compile_error!("Platforms with pointer width other than 64 are not supported.");
 
-pub struct ThinBoxSubscriber<E: EventpOps> {
+pub struct ThinBoxSubscriber<Ep: EventpOps> {
     ptr: NonNull<u8>,
-    _marker: PhantomData<dyn Subscriber<E>>,
+    _marker: PhantomData<dyn Subscriber<Ep>>,
 }
 
-impl<E> ThinBoxSubscriber<E>
+impl<Ep> ThinBoxSubscriber<Ep>
 where
-    E: EventpOps,
+    Ep: EventpOps,
 {
-    pub fn new<S: Subscriber<E>>(value: S) -> Self {
+    pub fn new<S: Subscriber<Ep>>(value: S) -> Self {
         if size_of::<S>() == 0 {
             panic!("ZST not supported");
         } else {
@@ -32,9 +32,9 @@ where
             #[cfg(feature = "mock")]
             const _: () = assert!(DYN_SUBSCRIBER_SIZE_MOCK == 16);
 
-            let fat_ptr = &value as &dyn Subscriber<E>;
+            let fat_ptr = &value as &dyn Subscriber<Ep>;
             let vtable_ptr =
-                unsafe { mem::transmute::<&dyn Subscriber<E>, (usize, usize)>(fat_ptr).1 };
+                unsafe { mem::transmute::<&dyn Subscriber<Ep>, (usize, usize)>(fat_ptr).1 };
 
             let (layout, value_offset) = Layout::new::<usize>()
                 .extend(Layout::new::<S>())
@@ -64,12 +64,12 @@ where
     }
 
     #[allow(clippy::boxed_local)]
-    pub fn from_box<S: Subscriber<E>>(value: Box<S>) -> Self {
+    pub fn from_box<S: Subscriber<Ep>>(value: Box<S>) -> Self {
         // Take down from heap firstly.
         Self::new(*value)
     }
 
-    pub fn from_box_dyn(value: Box<dyn Subscriber<E>>) -> Self {
+    pub fn from_box_dyn(value: Box<dyn Subscriber<Ep>>) -> Self {
         Self::from(value)
     }
 
@@ -89,41 +89,41 @@ where
     }
 }
 
-impl<E: EventpOps> Deref for ThinBoxSubscriber<E> {
-    type Target = dyn Subscriber<E>;
+impl<Ep: EventpOps> Deref for ThinBoxSubscriber<Ep> {
+    type Target = dyn Subscriber<Ep>;
 
     fn deref(&self) -> &Self::Target {
         let value = self.value();
         let metadata = unsafe { self.meta().cast::<usize>().read() };
         unsafe {
             let fat_ptr =
-                mem::transmute::<(*mut u8, usize), *const dyn Subscriber<E>>((value, metadata));
+                mem::transmute::<(*mut u8, usize), *const dyn Subscriber<Ep>>((value, metadata));
             &*fat_ptr
         }
     }
 }
 
-impl<E: EventpOps> DerefMut for ThinBoxSubscriber<E> {
+impl<Ep: EventpOps> DerefMut for ThinBoxSubscriber<Ep> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         let value = self.value();
         let metadata = unsafe { self.meta().cast::<usize>().read() };
         unsafe {
             let fat_ptr =
-                mem::transmute::<(*mut u8, usize), *mut dyn Subscriber<E>>((value, metadata));
+                mem::transmute::<(*mut u8, usize), *mut dyn Subscriber<Ep>>((value, metadata));
             &mut *fat_ptr
         }
     }
 }
 
-impl<E: EventpOps> Drop for ThinBoxSubscriber<E> {
+impl<Ep: EventpOps> Drop for ThinBoxSubscriber<Ep> {
     fn drop(&mut self) {
-        struct DropGuard<E: EventpOps> {
+        struct DropGuard<Ep: EventpOps> {
             ptr: NonNull<u8>,
             value_layout: Layout,
-            _marker: PhantomData<dyn Subscriber<E>>,
+            _marker: PhantomData<dyn Subscriber<Ep>>,
         }
 
-        impl<E: EventpOps> Drop for DropGuard<E> {
+        impl<Ep: EventpOps> Drop for DropGuard<Ep> {
             fn drop(&mut self) {
                 // All ZST are allocated statically.
                 if self.value_layout.size() == 0 {
@@ -150,7 +150,7 @@ impl<E: EventpOps> Drop for ThinBoxSubscriber<E> {
             let value_layout = Layout::for_value(value);
 
             // `_guard` will deallocate the memory when dropped, even if `drop_in_place` unwinds.
-            let _guard = DropGuard::<E> {
+            let _guard = DropGuard::<Ep> {
                 ptr: self.ptr,
                 value_layout,
                 _marker: PhantomData,
@@ -160,23 +160,23 @@ impl<E: EventpOps> Drop for ThinBoxSubscriber<E> {
     }
 }
 
-impl<S, E> From<S> for ThinBoxSubscriber<E>
+impl<S, Ep> From<S> for ThinBoxSubscriber<Ep>
 where
-    S: Subscriber<E>,
-    E: EventpOps,
+    S: Subscriber<Ep>,
+    Ep: EventpOps,
 {
     fn from(value: S) -> Self {
         Self::new(value)
     }
 }
 
-impl<E> From<Box<dyn Subscriber<E>>> for ThinBoxSubscriber<E>
+impl<Ep> From<Box<dyn Subscriber<Ep>>> for ThinBoxSubscriber<Ep>
 where
-    E: EventpOps,
+    Ep: EventpOps,
 {
-    fn from(old_value: Box<dyn Subscriber<E>>) -> Self {
+    fn from(old_value: Box<dyn Subscriber<Ep>>) -> Self {
         let fat_ptr = old_value.deref();
-        let vtable_ptr = unsafe { mem::transmute::<&dyn Subscriber<E>, (usize, usize)>(fat_ptr).1 };
+        let vtable_ptr = unsafe { mem::transmute::<&dyn Subscriber<Ep>, (usize, usize)>(fat_ptr).1 };
 
         let value_layout = Layout::for_value(old_value.deref());
         if value_layout.size() == 0 {

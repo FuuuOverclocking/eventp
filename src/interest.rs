@@ -6,10 +6,12 @@
 //! It also includes query methods to interpret the event set returned by the reactor.
 
 use std::cell::Cell;
+use std::marker::PhantomData;
 use std::os::fd::AsFd;
 
 use crate::epoll::EpollFlags;
-use crate::{BinSubscriber, EventpOps, FdWithInterest, Handler};
+use crate::tri_subscriber::FnHandler;
+use crate::{BinSubscriber, EventpOps, Handler, TriSubscriber};
 
 /// Represents interest in I/O readiness events.
 ///
@@ -66,23 +68,23 @@ impl Interest {
         self.0
     }
 
-    /// Combines this `Interest` with a file descriptor.
-    ///
-    /// This is a convenience method for chaining calls.
-    pub const fn with_fd<Fd>(self, fd: Fd) -> FdWithInterest<Fd>
-    where
-        Fd: AsFd,
-    {
-        FdWithInterest { fd, interest: self }
-    }
+    // /// Combines this `Interest` with a file descriptor.
+    // ///
+    // /// This is a convenience method for chaining calls.
+    // pub const fn with_fd<Fd>(self, fd: Fd) -> (Self, Fd)
+    // where
+    //     Fd: AsFd,
+    // {
+    //     (self, fd)
+    // }
 
     /// Combines this `Interest` with a handler to create a full `Subscriber`.
     ///
     /// This finalizes the setup for a subscribable I/O source.
-    pub const fn with_fd_and_handler<S, E>(self, fd_with_handler: S) -> BinSubscriber<S>
+    pub const fn with_fd_and_handler<S, Ep>(self, fd_with_handler: S) -> BinSubscriber<S>
     where
-        S: AsFd + Handler<E>,
-        E: EventpOps,
+        S: AsFd + Handler<Ep>,
+        Ep: EventpOps,
     {
         BinSubscriber {
             interest: Cell::new(self),
@@ -201,6 +203,83 @@ impl Interest {
         self.0.contains(EpollFlags::EPOLLRDHUP)
     }
 }
+
+pub trait WithFd {
+    type Out<Fd>;
+
+    fn with_fd<Fd: AsFd>(self, fd: Fd) -> Self::Out<Fd>;
+}
+
+impl WithFd for Interest {
+    type Out<Fd> = (Interest, Fd);
+
+    fn with_fd<Fd: AsFd>(self, fd: Fd) -> Self::Out<Fd> {
+        (self, fd)
+    }
+}
+
+impl<Args, F> WithFd for (Interest, FnHandler<Args, F>) {
+    type Out<Fd> = (Interest, Fd, FnHandler<Args, F>);
+
+    fn with_fd<Fd: AsFd>(self, fd: Fd) -> Self::Out<Fd> {
+        (self.0, fd, self.1)
+    }
+}
+
+pub trait WithHandler {
+    type Out<Args, F>;
+
+    fn with_handler<Args, F>(self, f: F) -> Self::Out<Args, F>;
+}
+
+impl WithHandler for Interest {
+    type Out<Args, F> = (Interest, FnHandler<Args, F>);
+
+    fn with_handler<Args, F>(self, f: F) -> Self::Out<Args, F> {
+        (
+            self,
+            FnHandler {
+                f,
+                _marker: PhantomData,
+            },
+        )
+    }
+}
+
+impl<Fd> WithHandler for (Interest, Fd)
+where
+    Fd: AsFd,
+{
+    type Out<Args, F> = (Interest, Fd, FnHandler<Args, F>);
+
+    fn with_handler<Args, F>(self, f: F) -> Self::Out<Args, F> {
+        (
+            self.0,
+            self.1,
+            FnHandler {
+                f,
+                _marker: PhantomData,
+            },
+        )
+    }
+}
+
+// pub trait WithHandler<Fd> {
+//     fn with_handler<Args, F>(self, f: F) -> TriSubscriber<Fd, Args, F>;
+// }
+
+// impl<Fd> WithHandler<Fd> for (Interest, Fd) where Fd: AsFd {
+//     fn with_handler<Args, F>(self, f: F) -> TriSubscriber<Fd, Args, F> {
+//         TriSubscriber {
+//             fd: self.1,
+//             interest: Cell::new(self.0),
+//             handler: FnHandler {
+//                 f,
+//                 _marker: PhantomData,
+//             },
+//         }
+//     }
+// }
 
 /// Creates a new, empty `Interest` set.
 ///
