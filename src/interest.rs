@@ -90,8 +90,6 @@ impl Interest {
         }
     }
 
-    // --- Builder Methods (for registering interest with the kernel) ---
-
     /// A private helper to add flags in a const context.
     const fn add(self, flags: EpollFlags) -> Self {
         Self(EpollFlags::from_bits_retain(self.0.bits() | flags.bits()))
@@ -148,57 +146,6 @@ impl Interest {
     /// This is useful for preventing "thundering herd" problems.
     pub const fn exclusive(self) -> Self {
         self.add(EpollFlags::EPOLLEXCLUSIVE)
-    }
-
-    // --- Query Methods (for interpreting events returned from the kernel) ---
-
-    /// Returns `true` if the interest contains readable readiness.
-    ///
-    /// This corresponds to the `EPOLLIN` flag.
-    pub const fn is_readable(&self) -> bool {
-        self.0.contains(EpollFlags::EPOLLIN)
-    }
-
-    /// Returns `true` if the interest contains writable readiness.
-    ///
-    /// This corresponds to the `EPOLLOUT` flag.
-    pub const fn is_writable(&self) -> bool {
-        self.0.contains(EpollFlags::EPOLLOUT)
-    }
-
-    /// Returns `true` if the interest contains priority readiness.
-    ///
-    /// This corresponds to the `EPOLLPRI` flag, indicating urgent out-of-band data.
-    pub const fn is_priority(&self) -> bool {
-        self.0.contains(EpollFlags::EPOLLPRI)
-    }
-
-    /// Returns `true` if the interest contains an error.
-    ///
-    /// This corresponds to the `EPOLLERR` flag. Note that this flag is
-    /// always reported on a file descriptor, even if not explicitly requested
-    /// in the interest set.
-    pub const fn is_error(&self) -> bool {
-        self.0.contains(EpollFlags::EPOLLERR)
-    }
-
-    /// Returns `true` if the interest contains a "hang up" event.
-    ///
-    /// This corresponds to the `EPOLLHUP` flag. This can mean the peer has
-    /// closed the connection, or the write end of a pipe is closed. Note
-    /// that this flag is always reported on a file descriptor, even if not
-    //  explicitly requested in the interest set.
-    pub const fn is_hangup(&self) -> bool {
-        self.0.contains(EpollFlags::EPOLLHUP)
-    }
-
-    /// Returns `true` if the peer has closed their writing end of the connection.
-    ///
-    /// This corresponds to the `EPOLLRDHUP` flag. It indicates that the
-    /// stream socket peer has closed their connection, or has shut down
-    /// their writing half of the connection.
-    pub const fn is_read_closed(&self) -> bool {
-        self.0.contains(EpollFlags::EPOLLRDHUP)
     }
 }
 
