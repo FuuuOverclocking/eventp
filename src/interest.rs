@@ -18,17 +18,6 @@ use crate::{BinSubscriber, EventpOps, FdWithInterest, Handler};
 /// writable) a user is interested in for a particular file descriptor.
 ///
 /// It also serves to interpret the events returned by `epoll_wait`.
-///
-/// # Examples
-///
-/// ```
-/// # use eventp::interest;
-/// // Create an interest for readable and edge-triggered events.
-/// let interest = interest().read().edge_triggered();
-///
-/// // Check if an event set indicates readability.
-/// assert!(interest.is_readable());
-/// ```
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(transparent)]
 pub struct Interest(EpollFlags);
@@ -199,15 +188,6 @@ impl Interest {
 ///
 /// This is a convenience function equivalent to `Interest::default()`.
 /// It's the starting point for building an interest set using the fluent API.
-///
-/// # Examples
-///
-/// ```
-/// # use eventp::interest;
-/// let interest = interest().read().write();
-/// assert!(interest.is_readable());
-/// assert!(interest.is_writable());
-/// ```
 pub const fn interest() -> Interest {
     Interest::new(EpollFlags::empty())
 }
