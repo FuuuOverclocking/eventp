@@ -21,7 +21,7 @@ Both commands need to be executed. When writing unit tests, you may find that th
 
 ## Example
 
-Here is an example that shows everything most users need: [examples/echo-server.rs](https://github.com/FuuuOverclocking/eventp/blob/main/examples/echo-server.rs).
+Here is an example shows almost everything users needed: [examples/echo-server.rs](https://github.com/FuuuOverclocking/eventp/blob/main/examples/echo-server.rs).
 
 ## License
 
