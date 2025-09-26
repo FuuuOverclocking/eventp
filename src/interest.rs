@@ -95,6 +95,11 @@ impl Interest {
         Self(EpollFlags::from_bits_retain(self.0.bits() | flags.bits()))
     }
 
+    /// A private helper to remove flags in a const context.
+    const fn remove(self, flags: EpollFlags) -> Self {
+        Self(self.0.difference(flags))
+    }
+
     /// Adds readable interest (`EPOLLIN`).
     pub const fn read(self) -> Self {
         self.add(EpollFlags::EPOLLIN)
@@ -146,6 +151,47 @@ impl Interest {
     /// This is useful for preventing "thundering herd" problems.
     pub const fn exclusive(self) -> Self {
         self.add(EpollFlags::EPOLLEXCLUSIVE)
+    }
+
+    /// Removes readable interest (`EPOLLIN`).
+    pub const fn remove_read(self) -> Self {
+        self.remove(EpollFlags::EPOLLIN)
+    }
+
+    /// Removes writable interest (`EPOLLOUT`).
+    pub const fn remove_write(self) -> Self {
+        self.remove(EpollFlags::EPOLLOUT)
+    }
+
+    /// Removes interest in the peer closing the write half of the connection (`EPOLLRDHUP`).
+    pub const fn remove_rdhup(self) -> Self {
+        self.remove(EpollFlags::EPOLLRDHUP)
+    }
+
+    /// Removes interest in priority events (`EPOLLPRI`).
+    pub const fn remove_pri(self) -> Self {
+        self.remove(EpollFlags::EPOLLPRI)
+    }
+
+    /// Unsets edge-triggered mode (`EPOLLET`), reverting to level-triggered.
+    pub const fn remove_edge_triggered(self) -> Self {
+        self.remove(EpollFlags::EPOLLET)
+    }
+
+    /// Unsets one-shot mode (`EPOLLONESHOT`).
+    pub const fn remove_oneshot(self) -> Self {
+        self.remove(EpollFlags::EPOLLONESHOT)
+    }
+
+    /// Unsets the `EPOLLWAKEUP` flag.
+    #[cfg(not(target_arch = "mips"))]
+    pub const fn remove_wakeup(self) -> Self {
+        self.remove(EpollFlags::EPOLLWAKEUP)
+    }
+
+    /// Unsets exclusive wake-up mode (`EPOLLEXCLUSIVE`).
+    pub const fn remove_exclusive(self) -> Self {
+        self.remove(EpollFlags::EPOLLEXCLUSIVE)
     }
 }
 
