@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 ---
+## [0.3.1](https://github.com/cocogitto/cocogitto/compare/v0.3.0..v0.3.1) - 2025-09-26
+
+### Tests
+
+- Remove broken doctest of Interest - ([bba2c03](https://github.com/cocogitto/cocogitto/commit/bba2c03bbdbf846943a0e71bcfe5d5375a62a5e7)) - Fuu
+
+---
 ## [0.3.0](https://github.com/cocogitto/cocogitto/compare/v0.2.0..v0.3.0) - 2025-09-26
 
 ### Features
