@@ -10,8 +10,8 @@ pub trait Registry {
         S: Subscriber<Self::Ep>;
 }
 
-impl<E: EventpOps> Registry for E {
-    type Ep = E;
+impl<Ep: EventpOps> Registry for Ep {
+    type Ep = Ep;
 
     fn register<S>(&mut self, subscriber: S) -> io::Result<()>
     where

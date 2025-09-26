@@ -79,10 +79,10 @@ impl Interest {
     /// Combines this `Interest` with a handler to create a full `Subscriber`.
     ///
     /// This finalizes the setup for a subscribable I/O source.
-    pub const fn with_fd_and_handler<S, E>(self, fd_with_handler: S) -> BinSubscriber<S>
+    pub const fn with_fd_and_handler<S, Ep>(self, fd_with_handler: S) -> BinSubscriber<S>
     where
-        S: AsFd + Handler<E>,
-        E: EventpOps,
+        S: AsFd + Handler<Ep>,
+        Ep: EventpOps,
     {
         BinSubscriber {
             interest: Cell::new(self),

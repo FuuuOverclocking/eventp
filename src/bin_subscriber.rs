@@ -20,8 +20,8 @@ impl<S: AsFd> AsFd for BinSubscriber<S> {
     }
 }
 
-impl<S: AsFd + Handler<E>, E: EventpOps> Handler<E> for BinSubscriber<S> {
-    fn handle(&mut self, event: Event, interest: Interest, eventp: Pinned<'_, E>) {
+impl<S: AsFd + Handler<Ep>, Ep: EventpOps> Handler<Ep> for BinSubscriber<S> {
+    fn handle(&mut self, event: Event, interest: Interest, eventp: Pinned<'_, Ep>) {
         self.fd_with_handler.handle(event, interest, eventp);
     }
 }

@@ -27,5 +27,5 @@ where
 macro_rules! pinned {
     ($value:expr $(,)?) => {
         $crate::Pinned(::std::pin::pin!($value))
-    }
+    };
 }
