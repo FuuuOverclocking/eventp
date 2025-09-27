@@ -1,4 +1,4 @@
-#![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 mod bin_subscriber;
 mod event;
@@ -37,8 +37,9 @@ use crate::epoll::*;
 pub use crate::event::Event;
 pub use crate::eventp_ops::EventpOps;
 #[cfg(feature = "mock")]
-#[cfg_attr(docsrs, doc(cfg(feature = "mock")))]
 pub use crate::eventp_ops::MockEventp;
+#[cfg(feature = "mock")]
+pub use crate::eventp_ops::__mock_MockEventp_EventpOps;
 pub use crate::interest::{interest, Interest};
 pub use crate::pinned::Pinned;
 pub use crate::registry::Registry;

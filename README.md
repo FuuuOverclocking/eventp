@@ -29,8 +29,6 @@ eventp = { version = "0.3.3", features = ["mock"] }
 
 > When writing tests, you may find the `mock` feature makes life much easier :)
 
-## Example
-
 Here is a full example shows almost everything you need: [examples/echo-server.rs](https://github.com/FuuuOverclocking/eventp/blob/main/examples/echo-server.rs).
 
 ## License
