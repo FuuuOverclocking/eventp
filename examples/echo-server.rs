@@ -4,68 +4,68 @@ use std::os::fd::{AsFd, AsRawFd};
 
 use eventp::{interest, Event, Eventp, EventpOps, Interest, Pinned, Subscriber};
 
+// Set up an echo server on port 3000.
+#[rustfmt::skip]
 fn main() -> io::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:3000")?;
     listener.set_nonblocking(true)?;
 
-    let mut eventp = Eventp::default();
+    let mut eventp = Eventp::default(); // Internally it creates an epoll fd.
     interest()
-        .read()
+        .read()                         // Interested in readable events, i.e. new connections.
         .with_fd(listener)
         .with_handler(on_connection)
         .register_into(&mut eventp)?;
 
-    eventp.run_forever()
+    eventp.run_forever()                // Loop: epoll_wait, dispatch event.
 }
 
-fn on_connection(listener: &mut impl Accept, mut eventp: Pinned<impl EventpOps>) {
+#[rustfmt::skip]
+fn on_connection(
+    listener: &mut impl Accept,         // Will receive `TcpListener`. To make it testable, we define a trait below.
+    mut eventp: Pinned<impl EventpOps>, // Will receive `Pinned<Eventp>`.
+) {
     let (stream, _) = listener.accept().expect("accept failed");
 
     interest()
         .edge_triggered()
-        .read()
+        .read()                         // Interested in readable events, edge triggered.
         .with_fd(stream)
         .with_handler(on_data)
         .register_into(&mut eventp)
         .expect("add to epoll failed");
 }
 
+#[rustfmt::skip]
 fn on_data(
-    // Place any parameters you like, in any order.
-    _interest: Interest,
+    // Rustacean Dependency Injection. Place any parameters you like, in any order.
+    _interest: Interest,                // Previously registered interests.
     mut eventp: Pinned<impl EventpOps>,
-    event: Event,
+    ev: Event,                          // The triggered event.
     stream: &mut (impl Read + Write + AsFd),
 ) {
-    if event.is_error() {
+    if ev.is_error() || ev.is_hangup() {
         eventp
             .delete(stream.as_fd().as_raw_fd())
             .expect("delete from epoll failed");
     }
-    if !event.is_readable() {
+    if !ev.is_readable() {
         return;
     }
 
     let mut buf = [0; 512];
     loop {
         match stream.read(&mut buf) {
-            Ok(0) => {
+            Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
+                return;
+            }
+            Err(_) | Ok(0) => {
                 eventp
                     .delete(stream.as_fd().as_raw_fd())
                     .expect("delete from epoll failed");
                 return;
             }
             Ok(n) => stream.write_all(&buf[..n]).expect("write failed"),
-            Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                return;
-            }
-            Err(e) => {
-                eprintln!("{}", e);
-                eventp
-                    .delete(stream.as_fd().as_raw_fd())
-                    .expect("delete from epoll failed");
-                return;
-            }
         }
     }
 }
