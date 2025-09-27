@@ -17,11 +17,21 @@ cargo add eventp
 cargo add eventp --dev --features mock
 ```
 
-Both commands need to be executed. When writing unit tests, you may find that the `mock` feature makes life much easier - it's even indispensable.
+or,
+
+```toml
+[dependencies]
+eventp = "0.3.1"
+
+[dev-dependencies]
+eventp = { version = "0.3.1", features = ["mock"] }
+```
+
+> When writing tests, you may find the `mock` feature makes life much easier :)
 
 ## Example
 
-Here is an example shows almost everything users needed: [examples/echo-server.rs](https://github.com/FuuuOverclocking/eventp/blob/main/examples/echo-server.rs).
+Here is a full example shows almost everything you need: [examples/echo-server.rs](https://github.com/FuuuOverclocking/eventp/blob/main/examples/echo-server.rs).
 
 ## License
 

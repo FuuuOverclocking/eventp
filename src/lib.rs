@@ -35,6 +35,7 @@ use crate::epoll::*;
 pub use crate::event::Event;
 pub use crate::eventp_ops::EventpOps;
 #[cfg(feature = "mock")]
+#[cfg_attr(docsrs, doc(cfg(feature = "mock")))]
 pub use crate::eventp_ops::MockEventp;
 pub use crate::interest::{interest, Interest};
 pub use crate::pinned::Pinned;
@@ -155,7 +156,9 @@ impl EventpOps for Eventp {
 
         if let Some(handling) = &self.handling {
             if handling.fd == raw_fd {
-                return Err(io::Error::other("Cannot add subscriber to the same fd at "));
+                return Err(io::Error::other(
+                    "cannot replace the subscriber of itself at running",
+                ));
             }
         }
 
