@@ -1,6 +1,6 @@
 [package]
 name = "eventp"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/FuuuOverclocking/eventp"

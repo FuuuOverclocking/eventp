@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 ---
+## [0.3.2](https://github.com/cocogitto/cocogitto/compare/v0.3.1..0.3.2) - 2025-09-27
+
+### Documentation
+
+- **(example)** Add comments for echo-server - ([587d521](https://github.com/cocogitto/cocogitto/commit/587d52141fff5824105b10d73cfb307a9940977b)) - Fuu
+- let docsrs know mock feature and update README - ([f998d76](https://github.com/cocogitto/cocogitto/commit/f998d76bd6c47e8fae7a5145185c3537ccef883e)) - Fuu
+
+---
 ## [0.3.1](https://github.com/cocogitto/cocogitto/compare/v0.3.0..v0.3.1) - 2025-09-26
 
 ### Tests
