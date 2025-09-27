@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 mod bin_subscriber;
 mod event;
 mod eventp_ops;

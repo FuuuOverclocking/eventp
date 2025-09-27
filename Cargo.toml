@@ -21,3 +21,4 @@ mock = ["dep:mockall"]
 
 [package.metadata.docs.rs]
 all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
