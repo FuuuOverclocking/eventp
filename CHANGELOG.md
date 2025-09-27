@@ -3,7 +3,18 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 ---
-## [0.3.2](https://github.com/cocogitto/cocogitto/compare/v0.3.1..0.3.2) - 2025-09-27
+## [0.3.3](https://github.com/cocogitto/cocogitto/compare/v0.3.2..0.3.3) - 2025-09-27
+
+### Documentation
+
+- Fix builds on docsrs - ([466b9b0](https://github.com/cocogitto/cocogitto/commit/466b9b0b6b32fc0d1eec50c279fcc08c9b92325c)) - Fuu
+
+### Build
+
+- Add release.sh - ([fd639c7](https://github.com/cocogitto/cocogitto/commit/fd639c7f1db3efa6a6035abe774aa7e7309c0b4c)) - Fuu
+
+---
+## [0.3.2](https://github.com/cocogitto/cocogitto/compare/v0.3.1..v0.3.2) - 2025-09-27
 
 ### Documentation
 
