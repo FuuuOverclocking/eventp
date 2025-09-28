@@ -3,73 +3,92 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 ---
-## [0.3.3](https://github.com/cocogitto/cocogitto/compare/v0.3.2..0.3.3) - 2025-09-27
+## [1.0.0-rc.1](https://github.com/FuuuOverclocking/eventp/compare/v0.3.3..1.0.0-rc.1) - 2025-09-28
 
 ### Documentation
 
-- Fix builds on docsrs - ([466b9b0](https://github.com/cocogitto/cocogitto/commit/466b9b0b6b32fc0d1eec50c279fcc08c9b92325c)) - Fuu
+- Update README - ([0653a4d](https://github.com/FuuuOverclocking/eventp/commit/0653a4d14b8a4cd9380349c8632c08812f282b89)) - Fuu
+- Use English comments - ([c9d1f8d](https://github.com/FuuuOverclocking/eventp/commit/c9d1f8da191b3f3c515ab6d46f5e16ffebec3c23)) - Fuu
+
+### Refactoring
+
+-  [**breaking**]Remove `interest` from `Handler`'s parameter - ([a498244](https://github.com/FuuuOverclocking/eventp/commit/a498244f4ff0cd2d3a5d81d02cf0cb790b7d8e5e)) - Fuu
+- Move `MockEventp` to standalone module.. - ([9140cdd](https://github.com/FuuuOverclocking/eventp/commit/9140cdd41bb6373364bb3e8c1817653f7da220b5)) - Fuu
+-  [**breaking**]Rename `WithInterest` to `HasInterest`.. - ([8d8ae40](https://github.com/FuuuOverclocking/eventp/commit/8d8ae4097f149b4542c765199622a6aaea7497d0)) - Fuu
+-  [**breaking**]Adjust module exports and remove `FdWithInterest` - ([3a32c27](https://github.com/FuuuOverclocking/eventp/commit/3a32c27a41778d957da5bb78c9ed4a336c8824cf)) - Fuu
 
 ### Build
 
-- Add release.sh - ([fd639c7](https://github.com/cocogitto/cocogitto/commit/fd639c7f1db3efa6a6035abe774aa7e7309c0b4c)) - Fuu
+- Correct settings in cliff.toml - ([4ce84b2](https://github.com/FuuuOverclocking/eventp/commit/4ce84b2695afbfb7012246a5e99d504472db6fb4)) - Fuu
 
 ---
-## [0.3.2](https://github.com/cocogitto/cocogitto/compare/v0.3.1..v0.3.2) - 2025-09-27
+## [0.3.3](https://github.com/FuuuOverclocking/eventp/compare/v0.3.2..v0.3.3) - 2025-09-27
 
 ### Documentation
 
-- **(example)** Add comments for echo-server - ([587d521](https://github.com/cocogitto/cocogitto/commit/587d52141fff5824105b10d73cfb307a9940977b)) - Fuu
-- let docsrs know mock feature and update README - ([f998d76](https://github.com/cocogitto/cocogitto/commit/f998d76bd6c47e8fae7a5145185c3537ccef883e)) - Fuu
+- Fix builds on docsrs - ([466b9b0](https://github.com/FuuuOverclocking/eventp/commit/466b9b0b6b32fc0d1eec50c279fcc08c9b92325c)) - Fuu
+
+### Build
+
+- Add release.sh - ([fd639c7](https://github.com/FuuuOverclocking/eventp/commit/fd639c7f1db3efa6a6035abe774aa7e7309c0b4c)) - Fuu
 
 ---
-## [0.3.1](https://github.com/cocogitto/cocogitto/compare/v0.3.0..v0.3.1) - 2025-09-26
+## [0.3.2](https://github.com/FuuuOverclocking/eventp/compare/v0.3.1..v0.3.2) - 2025-09-27
+
+### Documentation
+
+- **(example)** Add comments for echo-server - ([587d521](https://github.com/FuuuOverclocking/eventp/commit/587d52141fff5824105b10d73cfb307a9940977b)) - Fuu
+- let docsrs know mock feature and update README - ([f998d76](https://github.com/FuuuOverclocking/eventp/commit/f998d76bd6c47e8fae7a5145185c3537ccef883e)) - Fuu
+
+---
+## [0.3.1](https://github.com/FuuuOverclocking/eventp/compare/v0.3.0..v0.3.1) - 2025-09-26
 
 ### Tests
 
-- Remove broken doctest of Interest - ([bba2c03](https://github.com/cocogitto/cocogitto/commit/bba2c03bbdbf846943a0e71bcfe5d5375a62a5e7)) - Fuu
+- Remove broken doctest of Interest - ([bba2c03](https://github.com/FuuuOverclocking/eventp/commit/bba2c03bbdbf846943a0e71bcfe5d5375a62a5e7)) - Fuu
 
 ---
-## [0.3.0](https://github.com/cocogitto/cocogitto/compare/v0.2.0..v0.3.0) - 2025-09-26
+## [0.3.0](https://github.com/FuuuOverclocking/eventp/compare/v0.2.0..v0.3.0) - 2025-09-26
 
 ### Features
 
--  [**breaking**]Remove unused query methods from Interest - ([4d8f68f](https://github.com/cocogitto/cocogitto/commit/4d8f68ffacfdc3d504769c03ab8a973bf7d50e03)) - Fuu
-- Add remove_xxx methods for Interest flags - ([4d8501a](https://github.com/cocogitto/cocogitto/commit/4d8501a6baf8c7fed366833df2322b857480796a)) - Fuu
+-  [**breaking**]Remove unused query methods from Interest - ([4d8f68f](https://github.com/FuuuOverclocking/eventp/commit/4d8f68ffacfdc3d504769c03ab8a973bf7d50e03)) - Fuu
+- Add remove_xxx methods for Interest flags - ([4d8501a](https://github.com/FuuuOverclocking/eventp/commit/4d8501a6baf8c7fed366833df2322b857480796a)) - Fuu
 
 ### Miscellaneous Chores
 
-- Add license and update documentation - ([b24ab33](https://github.com/cocogitto/cocogitto/commit/b24ab3300cfc70af88c1e48ca434e221d08d16e0)) - Fuu
-- Update README - ([5a0d840](https://github.com/cocogitto/cocogitto/commit/5a0d840d6885be21ba6dd95792d22303973f81c3)) - Fuu
-- Use cocogitto-style changelog - ([fa023dc](https://github.com/cocogitto/cocogitto/commit/fa023dcdce9dfb4745426ba49c2c1bdf1bb9723f)) - Fuu
+- Add license and update documentation - ([b24ab33](https://github.com/FuuuOverclocking/eventp/commit/b24ab3300cfc70af88c1e48ca434e221d08d16e0)) - Fuu
+- Update README - ([5a0d840](https://github.com/FuuuOverclocking/eventp/commit/5a0d840d6885be21ba6dd95792d22303973f81c3)) - Fuu
+- Use cocogitto-style changelog - ([fa023dc](https://github.com/FuuuOverclocking/eventp/commit/fa023dcdce9dfb4745426ba49c2c1bdf1bb9723f)) - Fuu
 
 ### Style
 
-- Rename generic parameter E: EventOps to Ep - ([2bca3db](https://github.com/cocogitto/cocogitto/commit/2bca3dbd1efe22d64701cba6d221ea3457ca6e59)) - Fuu
+- Rename generic parameter E: EventOps to Ep - ([2bca3db](https://github.com/FuuuOverclocking/eventp/commit/2bca3dbd1efe22d64701cba6d221ea3457ca6e59)) - Fuu
 
 ### Build
 
-- Remove the unused dependency - ([d7fb26b](https://github.com/cocogitto/cocogitto/commit/d7fb26bb6cf3c004415d63ec2a0208fa0557302d)) - Fuu
+- Remove the unused dependency - ([d7fb26b](https://github.com/FuuuOverclocking/eventp/commit/d7fb26bb6cf3c004415d63ec2a0208fa0557302d)) - Fuu
 
 ### Ci
 
-- Setup GitHub workflows - ([c805fa4](https://github.com/cocogitto/cocogitto/commit/c805fa498d037becdb07035d38496c44d1ba5d1f)) - Fuu
+- Setup GitHub workflows - ([c805fa4](https://github.com/FuuuOverclocking/eventp/commit/c805fa498d037becdb07035d38496c44d1ba5d1f)) - Fuu
 
 ---
 ## [0.2.0] - 2025-09-25
 
 ### Features
 
-- **(examples)** Demonstrate DI-style callbacks - ([0a2fb31](https://github.com/cocogitto/cocogitto/commit/0a2fb3100536459aab09f178a3b67f56448f44aa)) - Fuu
-- Add PhantomPinned to Eventp struct - ([115de9d](https://github.com/cocogitto/cocogitto/commit/115de9d37de44775fb2b12fdacbbb45b3800f156)) - Fuu
+- **(examples)** Demonstrate DI-style callbacks - ([0a2fb31](https://github.com/FuuuOverclocking/eventp/commit/0a2fb3100536459aab09f178a3b67f56448f44aa)) - Fuu
+- Add PhantomPinned to Eventp struct - ([115de9d](https://github.com/FuuuOverclocking/eventp/commit/115de9d37de44775fb2b12fdacbbb45b3800f156)) - Fuu
 
 ### Miscellaneous Chores
 
-- use git-cliff to generate changelog - ([974db7b](https://github.com/cocogitto/cocogitto/commit/974db7be0a78054182f4fe244b1af04f6327eee8)) - Fuu
-- add cargo manifest - ([b280113](https://github.com/cocogitto/cocogitto/commit/b2801136161f14520b3eccbbeb649726e6bc7c0f)) - Fuu
-- Edit README - ([2319fd1](https://github.com/cocogitto/cocogitto/commit/2319fd19092b023cc2bf35c96e560bfda7cbb26a)) - Fuu
+- use git-cliff to generate changelog - ([974db7b](https://github.com/FuuuOverclocking/eventp/commit/974db7be0a78054182f4fe244b1af04f6327eee8)) - Fuu
+- add cargo manifest - ([b280113](https://github.com/FuuuOverclocking/eventp/commit/b2801136161f14520b3eccbbeb649726e6bc7c0f)) - Fuu
+- Edit README - ([2319fd1](https://github.com/FuuuOverclocking/eventp/commit/2319fd19092b023cc2bf35c96e560bfda7cbb26a)) - Fuu
 
 ### Refactoring
 
--  [**breaking**]Replace `Pin<&mut Ep>` with wrapper - ([3837664](https://github.com/cocogitto/cocogitto/commit/3837664bb54572c1ce50ba02701c59ce703a538b)) - Fuu
+-  [**breaking**]Replace `Pin<&mut Ep>` with wrapper - ([3837664](https://github.com/FuuuOverclocking/eventp/commit/3837664bb54572c1ce50ba02701c59ce703a538b)) - Fuu
 
 <!-- generated by git-cliff -->
