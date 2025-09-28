@@ -5,7 +5,7 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::{self, NonNull};
 
 #[cfg(feature = "mock")]
-use crate::MockEventp;
+use crate::mock::MockEventp;
 use crate::{Eventp, EventpOps, Subscriber};
 
 #[cfg(not(target_pointer_width = "64"))]
