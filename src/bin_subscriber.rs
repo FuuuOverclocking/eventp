@@ -1,14 +1,14 @@
 use std::cell::Cell;
 use std::os::fd::{AsFd, BorrowedFd};
 
-use crate::{Event, EventpOps, Handler, Interest, Pinned, WithInterest};
+use crate::{Event, EventpOps, Handler, HasInterest, Interest, Pinned};
 
 pub struct BinSubscriber<S> {
     pub(crate) interest: Cell<Interest>,
     pub(crate) fd_with_handler: S,
 }
 
-impl<S> WithInterest for BinSubscriber<S> {
+impl<S> HasInterest for BinSubscriber<S> {
     fn interest(&self) -> &Cell<Interest> {
         &self.interest
     }

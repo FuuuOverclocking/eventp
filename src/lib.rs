@@ -43,7 +43,7 @@ pub use crate::interest::{interest, Interest};
 pub use crate::mock::MockEventp;
 pub use crate::pinned::Pinned;
 pub use crate::registry::Registry;
-pub use crate::subscriber::{Handler, Subscriber, WithInterest};
+pub use crate::subscriber::{Handler, HasInterest, Subscriber};
 pub use crate::thin::ThinBoxSubscriber;
 pub use crate::tri_subscriber::{FdWithInterest, TriSubscriber};
 

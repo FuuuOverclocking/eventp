@@ -2,7 +2,7 @@ use std::cell::Cell;
 use std::marker::PhantomData;
 use std::os::fd::{AsFd, BorrowedFd};
 
-use crate::{Event, EventpOps, Handler, Interest, Pinned, WithInterest};
+use crate::{Event, EventpOps, Handler, HasInterest, Interest, Pinned};
 
 pub struct FdWithInterest<Fd> {
     pub(crate) fd: Fd,
@@ -42,7 +42,7 @@ where
     }
 }
 
-impl<Fd, Args, F> WithInterest for TriSubscriber<Fd, Args, F> {
+impl<Fd, Args, F> HasInterest for TriSubscriber<Fd, Args, F> {
     fn interest(&self) -> &Cell<Interest> {
         &self.interest
     }

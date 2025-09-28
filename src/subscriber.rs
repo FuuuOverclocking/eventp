@@ -4,7 +4,7 @@ use std::os::fd::AsFd;
 
 use crate::{Event, EventpOps, Interest, Pinned, Registry};
 
-pub trait Subscriber<Ep: EventpOps>: AsFd + WithInterest + Handler<Ep> {
+pub trait Subscriber<Ep: EventpOps>: AsFd + HasInterest + Handler<Ep> {
     fn register_into<R>(self, eventp: &mut R) -> io::Result<()>
     where
         Self: Sized,
@@ -16,12 +16,12 @@ pub trait Subscriber<Ep: EventpOps>: AsFd + WithInterest + Handler<Ep> {
 
 impl<S, Ep> Subscriber<Ep> for S
 where
-    S: AsFd + WithInterest + Handler<Ep>,
+    S: AsFd + HasInterest + Handler<Ep>,
     Ep: EventpOps,
 {
 }
 
-pub trait WithInterest {
+pub trait HasInterest {
     fn interest(&self) -> &Cell<Interest>;
 }
 
