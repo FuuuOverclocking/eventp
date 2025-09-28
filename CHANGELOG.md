@@ -3,7 +3,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 ---
-## [1.0.0-rc.1](https://github.com/FuuuOverclocking/eventp/compare/v0.3.3..1.0.0-rc.1) - 2025-09-28
+## [1.0.0-rc.2](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.1..1.0.0-rc.2) - 2025-09-28
+
+### Documentation
+
+- Fix broken docsrs builds - ([3564635](https://github.com/FuuuOverclocking/eventp/commit/3564635f56dec79bf3af910ac8282efa92dbdc45)) - Fuu
+
+---
+## [1.0.0-rc.1](https://github.com/FuuuOverclocking/eventp/compare/v0.3.3..v1.0.0-rc.1) - 2025-09-28
 
 ### Documentation
 
