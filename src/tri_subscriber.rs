@@ -98,13 +98,13 @@ macro_rules! impl_handler {
     };
 }
 
-// 1 个参数 (4 种)
+// 1 parameter (4 variants)
 impl_handler!(fd);
 impl_handler!(event);
 impl_handler!(interest);
 impl_handler!(eventp);
 
-// 2 个参数 (4P2 = 12 种)
+// 2 parameters (4P2 = 12 variants)
 impl_handler!(fd, event);
 impl_handler!(fd, interest);
 impl_handler!(fd, eventp);
@@ -118,7 +118,7 @@ impl_handler!(eventp, fd);
 impl_handler!(eventp, event);
 impl_handler!(eventp, interest);
 
-// 3 个参数 (4P3 = 24 种)
+// 3 parameters (4P3 = 24 variants)
 impl_handler!(fd, event, interest);
 impl_handler!(fd, event, eventp);
 impl_handler!(fd, interest, event);
@@ -144,7 +144,7 @@ impl_handler!(eventp, event, interest);
 impl_handler!(eventp, interest, fd);
 impl_handler!(eventp, interest, event);
 
-// 4 个参数 (4P4 = 24 种)
+// 4 parameters (4P4 = 24 variants)
 impl_handler!(fd, event, interest, eventp);
 impl_handler!(fd, event, eventp, interest);
 impl_handler!(fd, interest, event, eventp);
