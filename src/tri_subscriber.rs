@@ -54,7 +54,7 @@ where
     Fd: AsFd,
     F: FnMut(),
 {
-    fn handle(&mut self, _event: Event, _interest: Interest, _eventp: Pinned<'_, Ep>) {
+    fn handle(&mut self, _event: Event, _eventp: Pinned<'_, Ep>) {
         (self.handler.f)()
     }
 }
@@ -74,7 +74,7 @@ macro_rules! impl_handler {
         impl_handler!(@build_call ($s, $e, $i, $ep) -> @args( $($processed,)* $e, ) $($tail,)*)
     };
     (@build_call ($s:ident, $e:ident, $i:ident, $ep:ident) -> @args( $($processed:expr,)* ) interest, $($tail:ident,)*) => {
-        impl_handler!(@build_call ($s, $e, $i, $ep) -> @args( $($processed,)* $i, ) $($tail,)*)
+        impl_handler!(@build_call ($s, $e, $i, $ep) -> @args( $($processed,)* $i.interest.get(), ) $($tail,)*)
     };
     (@build_call ($s:ident, $e:ident, $i:ident, $ep:ident) -> @args( $($processed:expr,)* ) eventp, $($tail:ident,)*) => {
         impl_handler!(@build_call ($s, $e, $i, $ep) -> @args( $($processed,)* $ep, ) $($tail,)*)
@@ -91,8 +91,8 @@ macro_rules! impl_handler {
             F: FnMut( $( expand_param_type!($param), )* ),
         {
             #[allow(unused_variables)]
-            fn handle(&mut self, event: Event, interest: Interest, eventp: Pinned<'_, Ep>) {
-                impl_handler!(@build_call (self, event, interest, eventp) -> @args() $($param,)*);
+            fn handle(&mut self, event: Event, eventp: Pinned<'_, Ep>) {
+                impl_handler!(@build_call (self, event, self, eventp) -> @args() $($param,)*);
             }
         }
     };

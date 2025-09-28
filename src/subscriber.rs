@@ -26,5 +26,5 @@ pub trait WithInterest {
 }
 
 pub trait Handler<Ep: EventpOps> {
-    fn handle(&mut self, event: Event, interest: Interest, eventp: Pinned<'_, Ep>);
+    fn handle(&mut self, event: Event, eventp: Pinned<'_, Ep>);
 }

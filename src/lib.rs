@@ -133,11 +133,9 @@ impl Eventp {
             unsafe {
                 self.handling.as_mut().unwrap_unchecked().fd = subscriber.as_fd().as_raw_fd();
             }
-            let interest = subscriber.interest().get();
 
             subscriber.handle(
                 ev.events().into(),
-                interest,
                 Pinned(unsafe { Pin::new_unchecked(self) }),
             );
             mem::forget(subscriber);
