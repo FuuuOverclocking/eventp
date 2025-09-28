@@ -2,7 +2,8 @@ use std::io;
 use std::os::fd::RawFd;
 use std::pin::Pin;
 
-use crate::{EventpOps, Interest, ThinBoxSubscriber};
+use crate::thin::ThinBoxSubscriber;
+use crate::{EventpOps, Interest};
 
 pub struct Pinned<'a, Ep>(pub Pin<&'a mut Ep>);
 

@@ -8,8 +8,10 @@
 use std::cell::Cell;
 use std::os::fd::AsFd;
 
+use crate::bin_subscriber::BinSubscriber;
 use crate::epoll::EpollFlags;
-use crate::{BinSubscriber, EventpOps, FdWithInterest, Handler};
+use crate::subscriber::Handler;
+use crate::EventpOps;
 
 /// Represents interest in I/O readiness events.
 ///
@@ -53,16 +55,6 @@ impl Interest {
     /// Returns the underlying `EpollFlags` bitmask.
     pub const fn bitflags(&self) -> EpollFlags {
         self.0
-    }
-
-    /// Combines this `Interest` with a file descriptor.
-    ///
-    /// This is a convenience method for chaining calls.
-    pub const fn with_fd<Fd>(self, fd: Fd) -> FdWithInterest<Fd>
-    where
-        Fd: AsFd,
-    {
-        FdWithInterest { fd, interest: self }
     }
 
     /// Combines this `Interest` with a handler to create a full `Subscriber`.

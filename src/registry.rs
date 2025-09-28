@@ -1,6 +1,7 @@
 use std::io;
 
-use crate::{EventpOps, Pinned, Subscriber, ThinBoxSubscriber};
+use crate::thin::ThinBoxSubscriber;
+use crate::{EventpOps, Pinned, Subscriber};
 
 pub trait Registry {
     type Ep: EventpOps;

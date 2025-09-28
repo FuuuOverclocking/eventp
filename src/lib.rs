@@ -1,6 +1,6 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
-mod bin_subscriber;
+pub mod bin_subscriber;
 mod event;
 mod eventp_ops;
 mod interest;
@@ -8,9 +8,9 @@ mod interest;
 pub mod mock;
 mod pinned;
 mod registry;
-mod subscriber;
-mod thin;
-mod tri_subscriber;
+pub mod subscriber;
+pub mod thin;
+pub mod tri_subscriber;
 
 pub mod epoll {
     pub use nix::sys::epoll::{Epoll, EpollCreateFlags, EpollEvent, EpollFlags, EpollTimeout};
@@ -34,7 +34,6 @@ use std::{io, ptr};
 
 use rustc_hash::FxHashMap;
 
-pub use crate::bin_subscriber::BinSubscriber;
 use crate::epoll::*;
 pub use crate::event::Event;
 pub use crate::eventp_ops::EventpOps;
@@ -43,9 +42,8 @@ pub use crate::interest::{interest, Interest};
 pub use crate::mock::MockEventp;
 pub use crate::pinned::Pinned;
 pub use crate::registry::Registry;
-pub use crate::subscriber::{Handler, HasInterest, Subscriber};
-pub use crate::thin::ThinBoxSubscriber;
-pub use crate::tri_subscriber::{FdWithInterest, TriSubscriber};
+pub use crate::subscriber::Subscriber;
+use crate::thin::ThinBoxSubscriber;
 
 const DEFAULT_EVENT_BUF_CAPACITY: usize = 256;
 

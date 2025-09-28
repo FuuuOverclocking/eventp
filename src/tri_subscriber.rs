@@ -2,35 +2,18 @@ use std::cell::Cell;
 use std::marker::PhantomData;
 use std::os::fd::{AsFd, BorrowedFd};
 
-use crate::{Event, EventpOps, Handler, HasInterest, Interest, Pinned};
-
-pub struct FdWithInterest<Fd> {
-    pub(crate) fd: Fd,
-    pub(crate) interest: Interest,
-}
-
-impl<Fd: AsFd> FdWithInterest<Fd> {
-    pub fn with_handler<T, F>(self, f: F) -> TriSubscriber<Fd, T, F> {
-        TriSubscriber {
-            fd: self.fd,
-            interest: Cell::new(self.interest),
-            handler: FnHandler {
-                f,
-                _marker: PhantomData,
-            },
-        }
-    }
-}
-
-pub(crate) struct FnHandler<Args, F> {
-    f: F,
-    _marker: PhantomData<fn(Args)>,
-}
+use crate::subscriber::{Handler, HasInterest};
+use crate::{Event, EventpOps, Interest, Pinned};
 
 pub struct TriSubscriber<Fd, Args, F> {
     pub(crate) fd: Fd,
     pub(crate) interest: Cell<Interest>,
     pub(crate) handler: FnHandler<Args, F>,
+}
+
+pub struct FnHandler<Args, F> {
+    f: F,
+    _marker: PhantomData<fn(Args)>,
 }
 
 impl<Fd, Args, F> AsFd for TriSubscriber<Fd, Args, F>
@@ -45,6 +28,64 @@ where
 impl<Fd, Args, F> HasInterest for TriSubscriber<Fd, Args, F> {
     fn interest(&self) -> &Cell<Interest> {
         &self.interest
+    }
+}
+
+impl Interest {
+    /// Combines this `Interest` with a file descriptor.
+    ///
+    /// This is a convenience method for chaining calls.
+    pub const fn with_fd<Fd: AsFd>(self, fd: Fd) -> (Self, Fd) {
+        (self, fd)
+    }
+
+    pub const fn with_handler<Args, F>(self, f: F) -> (Self, FnHandler<Args, F>) {
+        (
+            self,
+            FnHandler {
+                f,
+                _marker: PhantomData,
+            },
+        )
+    }
+}
+
+pub trait WithFd {
+    type Out<Fd>;
+
+    fn with_fd<Fd: AsFd>(self, fd: Fd) -> Self::Out<Fd>;
+}
+
+impl<Args, F> WithFd for (Interest, FnHandler<Args, F>) {
+    type Out<Fd> = TriSubscriber<Fd, Args, F>;
+
+    fn with_fd<Fd: AsFd>(self, fd: Fd) -> Self::Out<Fd> {
+        TriSubscriber {
+            fd,
+            interest: Cell::new(self.0),
+            handler: self.1,
+        }
+    }
+}
+
+pub trait WithHandler {
+    type Out<Args, F>;
+
+    fn with_handler<Args, F>(self, f: F) -> Self::Out<Args, F>;
+}
+
+impl<Fd: AsFd> WithHandler for (Interest, Fd) {
+    type Out<Args, F> = TriSubscriber<Fd, Args, F>;
+
+    fn with_handler<Args, F>(self, f: F) -> Self::Out<Args, F> {
+        TriSubscriber {
+            fd: self.1,
+            interest: Cell::new(self.0),
+            handler: FnHandler {
+                f,
+                _marker: PhantomData,
+            },
+        }
     }
 }
 

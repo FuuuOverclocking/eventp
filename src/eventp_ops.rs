@@ -1,7 +1,8 @@
 use std::io;
 use std::os::fd::RawFd;
 
-use crate::{Interest, ThinBoxSubscriber};
+use crate::thin::ThinBoxSubscriber;
+use crate::Interest;
 
 pub trait EventpOps: Sized {
     fn add(&mut self, subscriber: ThinBoxSubscriber<Self>) -> io::Result<()>;

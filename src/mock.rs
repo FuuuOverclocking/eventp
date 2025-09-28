@@ -31,9 +31,9 @@
 use std::io;
 use std::os::fd::RawFd;
 
-use crate::{EventpOps, Interest, ThinBoxSubscriber};
+use crate::thin::ThinBoxSubscriber;
+use crate::{EventpOps, Interest};
 
-#[cfg(feature = "mock")]
 mockall::mock! {
     /// See [module level docs](crate::mock) for more information.
     pub Eventp {}

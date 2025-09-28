@@ -2,6 +2,7 @@ use std::io::{self, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::os::fd::{AsFd, AsRawFd};
 
+use eventp::tri_subscriber::WithHandler;
 use eventp::{interest, Event, Eventp, EventpOps, Interest, Pinned, Subscriber};
 
 // Set up an echo server on port 3000.

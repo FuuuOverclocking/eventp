@@ -1,7 +1,8 @@
 use std::cell::Cell;
 use std::os::fd::{AsFd, BorrowedFd};
 
-use crate::{Event, EventpOps, Handler, HasInterest, Interest, Pinned};
+use crate::subscriber::{Handler, HasInterest};
+use crate::{Event, EventpOps, Interest, Pinned};
 
 pub struct BinSubscriber<S> {
     pub(crate) interest: Cell<Interest>,
