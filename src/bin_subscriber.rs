@@ -26,3 +26,20 @@ impl<S: AsFd + Handler<Ep>, Ep: EventpOps> Handler<Ep> for BinSubscriber<S> {
         self.fd_with_handler.handle(event, eventp);
     }
 }
+
+impl Interest {
+    /// Combines this `Interest` with a file descriptor and handler to create a `Subscriber`.
+    ///
+    /// This is a low-level method for building a subscriber. Higher-level abstractions
+    /// like those in `tri_subscriber` are often more convenient.
+    pub const fn with_fd_and_handler<S, Ep>(self, fd_with_handler: S) -> BinSubscriber<S>
+    where
+        S: AsFd + Handler<Ep>,
+        Ep: EventpOps,
+    {
+        BinSubscriber {
+            interest: Cell::new(self),
+            fd_with_handler,
+        }
+    }
+}

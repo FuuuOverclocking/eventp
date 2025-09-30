@@ -1,25 +1,12 @@
-//! This module defines `Interest`, a type used to specify readiness events
-//! for file descriptors when registering with an I/O reactor (like epoll).
-//!
-//! `Interest` is a type-safe wrapper around raw `epoll` flags, providing a
-//! fluent builder-style API to construct the desired set of events to monitor.
-//! It also includes query methods to interpret the event set returned by the reactor.
-
-use std::cell::Cell;
-use std::os::fd::AsFd;
-
-use crate::bin_subscriber::BinSubscriber;
 use crate::epoll::EpollFlags;
-use crate::subscriber::Handler;
-use crate::EventpOps;
 
-/// Represents interest in I/O readiness events.
+/// Represents interest in I/O readiness events for a file descriptor.
 ///
-/// This is a wrapper around `EpollFlags` that provides a fluent API for building
-/// an interest set. It can be used to specify what events (e.g., readable,
-/// writable) a user is interested in for a particular file descriptor.
+/// This is a wrapper around [`EpollFlags`] that provides a fluent builder API
+/// for constructing an interest set (e.g., readable, writable, edge-triggered).
 ///
-/// It also serves to interpret the events returned by `epoll_wait`.
+/// References for epoll flags provided on each method's documentation, or see
+/// [epoll_ctl(2)](https://man.archlinux.org/man/epoll_ctl.2.en#EPOLLIN).
 #[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(transparent)]
 pub struct Interest(EpollFlags);
@@ -45,9 +32,6 @@ impl From<Interest> for EpollFlags {
 
 impl Interest {
     /// Creates a new `Interest` from raw `EpollFlags`.
-    ///
-    /// This is generally used for converting from a raw event mask returned by
-    /// the operating system.
     pub const fn new(flags: EpollFlags) -> Self {
         Self(flags)
     }
@@ -57,71 +41,83 @@ impl Interest {
         self.0
     }
 
-    /// Combines this `Interest` with a handler to create a full `Subscriber`.
-    ///
-    /// This finalizes the setup for a subscribable I/O source.
-    pub const fn with_fd_and_handler<S, Ep>(self, fd_with_handler: S) -> BinSubscriber<S>
-    where
-        S: AsFd + Handler<Ep>,
-        Ep: EventpOps,
-    {
-        BinSubscriber {
-            interest: Cell::new(self),
-            fd_with_handler,
-        }
-    }
-
-    /// A private helper to add flags in a const context.
+    /// Adds the given flags to this interest set.
     const fn add(self, flags: EpollFlags) -> Self {
-        Self(EpollFlags::from_bits_retain(self.0.bits() | flags.bits()))
+        Self(self.0.union(flags))
     }
 
-    /// A private helper to remove flags in a const context.
+    /// Removes the given flags from this interest set.
     const fn remove(self, flags: EpollFlags) -> Self {
         Self(self.0.difference(flags))
     }
 
-    /// Adds readable interest (`EPOLLIN`).
+    /// Adds interest in readable events (`EPOLLIN`).
+    ///
+    /// The associated file is available for read(2) operations.
     pub const fn read(self) -> Self {
         self.add(EpollFlags::EPOLLIN)
     }
 
-    /// Adds writable interest (`EPOLLOUT`).
+    /// Adds interest in writable events (`EPOLLOUT`).
+    ///
+    /// The associated file is available for write(2) operations.
     pub const fn write(self) -> Self {
         self.add(EpollFlags::EPOLLOUT)
     }
 
-    /// Adds both readable and writable interest.
+    /// Adds interest in both readable and writable events.
     pub const fn read_write(self) -> Self {
-        self.add(EpollFlags::EPOLLIN).add(EpollFlags::EPOLLOUT)
+        self.read().write()
     }
 
     /// Adds interest in the peer closing the write half of the connection (`EPOLLRDHUP`).
+    ///
+    /// Stream socket peer closed connection, or shut down writing half of connection.
+    /// (This flag is especially useful for writing simple code to detect peer shutdown
+    /// when using edge-triggered monitoring.)
     pub const fn rdhup(self) -> Self {
         self.add(EpollFlags::EPOLLRDHUP)
     }
 
-    /// Adds interest in priority events (`EPOLLPRI`).
+    /// Adds interest in priority events (`EPOLLPRI`), such as out-of-band data.
+    ///
+    /// There is an exceptional condition on the file descriptor. See the discussion of
+    /// POLLPRI in poll(2).
     pub const fn pri(self) -> Self {
         self.add(EpollFlags::EPOLLPRI)
     }
 
-    /// Sets edge-triggered mode (`EPOLLET`).
+    /// Sets edge-triggered mode (`EPOLLET`). Note that it is level-triggered by default,
+    /// therefore that method is not available.
     ///
-    /// Note: Level-triggered mode is the default and cannot be explicitly added.
+    /// Requests edge-triggered notification for the associated file descriptor. The default
+    /// behavior for epoll is level-triggered. See epoll(7) for more detailed information
+    /// about edge-triggered and level-triggered notification.
     pub const fn edge_triggered(self) -> Self {
         self.add(EpollFlags::EPOLLET)
     }
 
     /// Sets one-shot mode (`EPOLLONESHOT`).
     ///
-    /// After an event is pulled for the file descriptor, it is disabled until
-    /// it is re-armed.
+    /// Requests one-shot notification for the associated file descriptor. This means that
+    /// after an event notified for the file descriptor by epoll_wait(2), the file
+    /// descriptor is disabled in the interest list and no other events will be reported
+    /// by the epoll interface. The user must call epoll_ctl() with EPOLL_CTL_MOD to rearm
+    /// the file descriptor with a new event mask.
     pub const fn oneshot(self) -> Self {
         self.add(EpollFlags::EPOLLONESHOT)
     }
 
-    /// A flag that can be used to prevent suspend/hibernate (`EPOLLWAKEUP`).
+    /// Adds a flag to prevent system suspend/hibernate while events are pending (`EPOLLWAKEUP`).
+    ///
+    /// If EPOLLONESHOT and EPOLLET are clear and the process has the CAP_BLOCK_SUSPEND
+    /// capability, ensure that the system does not enter "suspend" or "hibernate" while
+    /// this event is pending or being processed. The event is considered as being
+    /// "processed" from the time when it is returned by a call to epoll_wait(2) until the
+    /// next call to epoll_wait(2) on the same epoll(7) file descriptor, the closure of
+    /// that file descriptor, the removal of the event file descriptor with EPOLL_CTL_DEL,
+    /// or the clearing of EPOLLWAKEUP for the event file descriptor with EPOLL_CTL_MOD.
+    /// See also BUGS.
     #[cfg(not(target_arch = "mips"))]
     pub const fn wakeup(self) -> Self {
         self.add(EpollFlags::EPOLLWAKEUP)
@@ -129,37 +125,61 @@ impl Interest {
 
     /// Sets exclusive wake-up mode (`EPOLLEXCLUSIVE`).
     ///
-    /// This is useful for preventing "thundering herd" problems.
+    /// Sets an exclusive wakeup mode for the epoll file descriptor that is being attached
+    /// to the target file descriptor, fd. When a wakeup event occurs and multiple epoll
+    /// file descriptors are attached to the same target file using EPOLLEXCLUSIVE, one or
+    /// more of the epoll file descriptors will receive an event with epoll_wait(2). The
+    /// default in this scenario (when EPOLLEXCLUSIVE is not set) is for all epoll file
+    /// descriptors to receive an event. EPOLLEXCLUSIVE is thus useful for avoiding
+    /// thundering herd problems in certain scenarios.
+    ///
+    /// If the same file descriptor is in multiple epoll instances, some with the
+    /// EPOLLEXCLUSIVE flag, and others without, then events will be provided to all epoll
+    /// instances that did not specify EPOLLEXCLUSIVE, and at least one of the epoll
+    /// instances that did specify EPOLLEXCLUSIVE.
+    ///
+    /// The following values may be specified in conjunction with EPOLLEXCLUSIVE: EPOLLIN,
+    /// EPOLLOUT, EPOLLWAKEUP, and EPOLLET. EPOLLHUP and EPOLLERR can also be specified,
+    /// but this is not required: as usual, these events are always reported if they occur,
+    /// regardless of whether they are specified in events. Attempts to specify other values
+    /// in events yield the error EINVAL.
+    ///
+    /// EPOLLEXCLUSIVE may be used only in an EPOLL_CTL_ADD operation; attempts to employ
+    /// it with EPOLL_CTL_MOD yield an error. If EPOLLEXCLUSIVE has been set using epoll_ctl(),
+    /// then a subsequent EPOLL_CTL_MOD on the same epfd, fd pair yields an error. A call
+    /// to epoll_ctl() that specifies EPOLLEXCLUSIVE in events and specifies the target
+    /// file descriptor fd as an epoll instance will likewise fail. The error in all of
+    /// these cases is EINVAL.
     pub const fn exclusive(self) -> Self {
         self.add(EpollFlags::EPOLLEXCLUSIVE)
     }
 
-    /// Removes readable interest (`EPOLLIN`).
+    /// Removes interest in readable events.
     pub const fn remove_read(self) -> Self {
         self.remove(EpollFlags::EPOLLIN)
     }
 
-    /// Removes writable interest (`EPOLLOUT`).
+    /// Removes interest in writable events.
     pub const fn remove_write(self) -> Self {
         self.remove(EpollFlags::EPOLLOUT)
     }
 
-    /// Removes interest in the peer closing the write half of the connection (`EPOLLRDHUP`).
+    /// Removes interest in the `EPOLLRDHUP` event.
     pub const fn remove_rdhup(self) -> Self {
         self.remove(EpollFlags::EPOLLRDHUP)
     }
 
-    /// Removes interest in priority events (`EPOLLPRI`).
+    /// Removes interest in priority events.
     pub const fn remove_pri(self) -> Self {
         self.remove(EpollFlags::EPOLLPRI)
     }
 
-    /// Unsets edge-triggered mode (`EPOLLET`), reverting to level-triggered.
+    /// Unsets edge-triggered mode, reverting to the default level-triggered behavior.
     pub const fn remove_edge_triggered(self) -> Self {
         self.remove(EpollFlags::EPOLLET)
     }
 
-    /// Unsets one-shot mode (`EPOLLONESHOT`).
+    /// Unsets one-shot mode.
     pub const fn remove_oneshot(self) -> Self {
         self.remove(EpollFlags::EPOLLONESHOT)
     }
@@ -170,16 +190,46 @@ impl Interest {
         self.remove(EpollFlags::EPOLLWAKEUP)
     }
 
-    /// Unsets exclusive wake-up mode (`EPOLLEXCLUSIVE`).
+    /// Unsets exclusive wake-up mode.
     pub const fn remove_exclusive(self) -> Self {
         self.remove(EpollFlags::EPOLLEXCLUSIVE)
     }
 }
 
-/// Creates a new, empty `Interest` set.
+/// Creates a new, empty [`Interest`] set. This is the **recommended** API entry point.
 ///
-/// This is a convenience function equivalent to `Interest::default()`.
-/// It's the starting point for building an interest set using the fluent API.
+/// Use this function to start fluently configuring the interest set (e.g., `.read()`).
+/// Chain the configuration with [`with_fd`] and [`with_handler`] to create a [`Subscriber`],
+/// and then use [`register_into`] to register it with an [`Eventp`].
+///
+/// # Examples
+///
+/// ```rust
+/// # use std::io;
+/// # use eventp::{interest, tri_subscriber::WithHandler, Eventp, Subscriber};
+/// use nix::sys::eventfd::EventFd;
+///
+/// fn thread_main(efd: EventFd) -> io::Result<()> {
+///     let mut eventp = Eventp::default();
+///     interest()
+///         .read()
+///         .with_fd(efd)
+///         .with_handler(|efd: &mut EventFd| {
+///             efd.read().unwrap();
+///             do_something();
+///         })
+///         .register_into(&mut eventp)?;
+///
+///     eventp.run_forever()
+/// }
+/// # fn do_something() {}
+/// ```
+///
+/// [`with_fd`]: Interest::with_fd
+/// [`with_handler`]: crate::tri_subscriber::WithHandler::with_handler
+/// [`Subscriber`]: crate::Subscriber
+/// [`register_into`]: crate::Subscriber::register_into
+/// [`Eventp`]: crate::Eventp
 pub const fn interest() -> Interest {
     Interest::new(EpollFlags::empty())
 }
