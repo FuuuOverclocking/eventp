@@ -11,6 +11,11 @@ use crate::{Eventp, EventpOps, Subscriber};
 #[cfg(not(target_pointer_width = "64"))]
 compile_error!("Platforms with pointer width other than 64 are not supported.");
 
+/// Similar to `Box<dyn Subscriber<Ep>>`, but the size is only one pointer width.
+///
+/// Since epoll allows registering only a `u64` alongside the file descriptor, fat pointers
+/// cannot be stored, which is why this type was created. See [technical](crate::_technical)
+/// for more information.
 pub struct ThinBoxSubscriber<Ep: EventpOps> {
     ptr: NonNull<u8>,
     _marker: PhantomData<dyn Subscriber<Ep>>,

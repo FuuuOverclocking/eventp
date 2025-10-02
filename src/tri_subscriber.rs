@@ -39,6 +39,9 @@ impl Interest {
         (self, fd)
     }
 
+    /// Combines this Interest with the event handler.
+    ///
+    /// This is a convenience method for chaining calls.
     pub const fn with_handler<Args, F>(self, f: F) -> (Self, FnHandler<Args, F>) {
         (
             self,
