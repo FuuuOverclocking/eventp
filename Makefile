@@ -1,4 +1,4 @@
-.PHONY: check doc release
+.PHONY: check doc fmt release
 
 CURRENT_VERSION := $(shell awk -F '"' '/^version =/ {print $$2; exit}' Cargo.toml)
 
@@ -6,11 +6,14 @@ check:
 	cargo clippy --example=echo-server
 	cargo clippy --example=echo-server --all-features
 	cargo test --all-features --example=echo-server
-	cargo +nightly fmt
+	cargo +nightly fmt --check
 	cargo test --all-features
 
 doc:
 	RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features
+
+fmt:
+	cargo +nightly fmt
 
 release:
 ifndef VERSION
