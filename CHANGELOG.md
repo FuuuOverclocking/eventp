@@ -3,7 +3,20 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 ---
-## [1.0.0-rc.2](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.1..1.0.0-rc.2) - 2025-09-28
+## [1.0.0-rc.3](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.2..1.0.0-rc.3) - 2025-10-02
+
+### Documentation
+
+- Add documentation for `Event` and `Interest` - ([e447f64](https://github.com/FuuuOverclocking/eventp/commit/e447f64a1e554cf93ffaec5865c9618806168b09)) - Fuu
+- Add documentation for several items - ([bebf9ac](https://github.com/FuuuOverclocking/eventp/commit/bebf9accb38af0b88c3ebcbbb8f8c94fc928faed)) - Fuu
+
+### Miscellaneous Chores
+
+- Add .vscode to .gitignore - ([194216b](https://github.com/FuuuOverclocking/eventp/commit/194216b142179e7ff13482c0867e71a508390297)) - Fuu
+- Replace release.sh with Makefile - ([383a97a](https://github.com/FuuuOverclocking/eventp/commit/383a97a5204bc3c542ef1904e5e9ca1a2a0054f0)) - Fuu
+
+---
+## [1.0.0-rc.2](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.1..v1.0.0-rc.2) - 2025-09-28
 
 ### Documentation
 
