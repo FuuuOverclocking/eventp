@@ -39,6 +39,7 @@ dependencies = [
  "libc",
  "mockall",
  "nix",
+ "oneshot",
  "rustc-hash",
 ]
 
@@ -91,6 +92,12 @@ dependencies = [
  "cfg_aliases",
  "libc",
 ]
+
+[[package]]
+name = "oneshot"
+version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4ce411919553d3f9fa53a0880544cda985a112117a0444d5ff1e870a893d6ea"
 
 [[package]]
 name = "predicates"
