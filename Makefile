@@ -7,6 +7,7 @@ check:
 	cargo clippy --example=echo-server --all-features
 	cargo test --all-features --example=echo-server
 	cargo +nightly fmt --check
+	cargo test
 	cargo test --all-features
 
 doc:

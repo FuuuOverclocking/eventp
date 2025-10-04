@@ -33,27 +33,32 @@ where
 /// create a `Pinned<'_, MockEventp>`.
 /// For details on the underlying magic, see [technical](crate::_technical).
 ///
-/// # Examples
-///
-/// ```rust
-/// # use std::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd};
-/// use eventp::{pinned, EventpOps, MockEventp, Pinned};
-/// use mockall::predicate::*;
-///
-/// fn fn_to_test(fd: impl AsFd, mut eventp: Pinned<'_, impl EventpOps>) {
-///     // do something..
-///     eventp.delete(fd.as_fd().as_raw_fd()).unwrap();
-/// }
-///
-/// let fd = unsafe { BorrowedFd::borrow_raw(1) };
-/// let mut mock_eventp = MockEventp::new();
-/// mock_eventp
-///     .expect_delete()
-///     .with(eq(fd.as_raw_fd()))
-///     .times(1)
-///     .returning(|_| Ok(()));
-/// fn_to_test(fd, pinned!(mock_eventp))
-/// ```
+#[cfg_attr(
+    feature = "mock",
+    doc = r##"
+# Examples
+
+```rust
+# use std::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd};
+use eventp::{pinned, EventpOps, MockEventp, Pinned};
+use mockall::predicate::*;
+
+fn fn_to_test(fd: impl AsFd, mut eventp: Pinned<'_, impl EventpOps>) {
+    // do something..
+    eventp.delete(fd.as_fd().as_raw_fd()).unwrap();
+}
+
+let fd = unsafe { BorrowedFd::borrow_raw(1) };
+let mut mock_eventp = MockEventp::new();
+mock_eventp
+    .expect_delete()
+    .with(eq(fd.as_raw_fd()))
+    .times(1)
+    .returning(|_| Ok(()));
+fn_to_test(fd, pinned!(mock_eventp))
+```
+"##
+)]
 #[macro_export]
 macro_rules! pinned {
     ($value:expr $(,)?) => {
