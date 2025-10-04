@@ -53,6 +53,8 @@ mod interest;
 pub mod mock;
 mod pinned;
 mod registry;
+#[cfg(feature = "remote-endpoint")]
+pub mod remote_endpoint;
 pub mod subscriber;
 pub mod thin;
 pub mod tri_subscriber;
@@ -88,6 +90,8 @@ pub use crate::interest::{interest, Interest};
 pub use crate::mock::MockEventp;
 pub use crate::pinned::Pinned;
 pub use crate::registry::Registry;
+#[cfg(feature = "remote-endpoint")]
+pub use crate::remote_endpoint::remote_endpoint;
 pub use crate::subscriber::Subscriber;
 use crate::thin::ThinBoxSubscriber;
 

@@ -14,10 +14,12 @@ A high-performance Linux event loop library built on epoll with type-safe intere
 libc = "0.2"
 mockall = { version = "0.13", optional = true }
 nix = { version = "0.30", features = ["event"] }
+oneshot = { version = "0.1.11", optional = true }
 rustc-hash = "2"
 
 [features]
 mock = ["dep:mockall"]
+remote-endpoint = ["dep:oneshot"]
 
 [package.metadata.docs.rs]
 all-features = true
