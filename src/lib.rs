@@ -264,7 +264,7 @@ impl Eventp {
             // Update the currently handled fd in the `Handling` state.
             // SAFETY: `self.handling` is guaranteed to be `Some` within this loop.
             unsafe {
-                self.handling.as_mut().unwrap_unchecked().fd = subscriber.as_fd().as_raw_fd();
+                self.handling.as_mut().unwrap_unchecked().fd = subscriber.raw_fd();
             }
 
             // Dispatch the event to the subscriber's handler.

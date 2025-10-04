@@ -123,7 +123,11 @@ mod tests {
         let mut mock_eventp = MockEventp::new();
 
         mock_listener.expect_accept().returning(|| {
-            let stream = MockStream::new();
+            let mut stream = MockStream::new();
+            stream
+                .expect_as_fd()
+                .returning(|| unsafe { BorrowedFd::borrow_raw(42) });
+
             let addr = "127.0.0.1:12345".parse().unwrap();
             Ok((stream, addr))
         });
