@@ -2,6 +2,7 @@ use std::alloc::{self, Layout};
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Deref, DerefMut};
+use std::os::fd::AsRawFd;
 use std::ptr::{self, NonNull};
 
 #[cfg(feature = "mock")]
@@ -28,42 +29,49 @@ where
     pub fn new<S: Subscriber<Ep>>(value: S) -> Self {
         if size_of::<S>() == 0 {
             panic!("ZST not supported");
-        } else {
-            const DYN_SUBSCRIBER_SIZE: usize = size_of::<&dyn Subscriber<Eventp>>();
-            const _: () = assert!(DYN_SUBSCRIBER_SIZE == 16);
+        }
 
-            #[cfg(feature = "mock")]
-            const DYN_SUBSCRIBER_SIZE_MOCK: usize = size_of::<&dyn Subscriber<MockEventp>>();
-            #[cfg(feature = "mock")]
-            const _: () = assert!(DYN_SUBSCRIBER_SIZE_MOCK == 16);
+        const DYN_SUBSCRIBER_SIZE: usize = size_of::<&dyn Subscriber<Eventp>>();
+        const _: () = assert!(DYN_SUBSCRIBER_SIZE == 16);
 
-            let fat_ptr = &value as &dyn Subscriber<Ep>;
-            let vtable_ptr =
-                unsafe { mem::transmute::<&dyn Subscriber<Ep>, (usize, usize)>(fat_ptr).1 };
+        #[cfg(feature = "mock")]
+        const DYN_SUBSCRIBER_SIZE_MOCK: usize = size_of::<&dyn Subscriber<MockEventp>>();
+        #[cfg(feature = "mock")]
+        const _: () = assert!(DYN_SUBSCRIBER_SIZE_MOCK == 16);
 
-            let (layout, value_offset) = Layout::new::<usize>()
-                .extend(Layout::new::<S>())
-                .expect("Failed to create combined layout");
+        let fat_ptr = &value as &dyn Subscriber<Ep>;
+        let vtable_ptr =
+            unsafe { mem::transmute::<&dyn Subscriber<Ep>, (usize, usize)>(fat_ptr).1 };
 
-            unsafe {
-                let ptr = {
-                    // SAFETY: layout has a non-zero size, because S is not ZST.
-                    let ptr = alloc::alloc(layout);
-                    if ptr.is_null() {
-                        alloc::handle_alloc_error(layout);
-                    }
+        let (layout, value_offset) = Layout::new::<(usize, usize)>()
+            .extend(Layout::new::<S>())
+            .expect("Failed to create combined layout");
 
-                    let ptr = ptr.add(value_offset);
-                    NonNull::new_unchecked(ptr)
-                };
-
-                ptr.as_ptr().sub(8).cast::<usize>().write(vtable_ptr);
-                ptr.as_ptr().cast::<S>().write(value);
-
-                Self {
-                    ptr,
-                    _marker: PhantomData,
+        unsafe {
+            let ptr = {
+                // SAFETY: layout has a non-zero size, because S is not ZST.
+                let ptr = alloc::alloc(layout);
+                if ptr.is_null() {
+                    alloc::handle_alloc_error(layout);
                 }
+
+                let ptr = ptr.add(value_offset);
+                NonNull::new_unchecked(ptr)
+            };
+
+            ptr.as_ptr()
+                .sub(2 * size_of::<usize>())
+                .cast::<i32>()
+                .write(value.as_fd().as_raw_fd());
+            ptr.as_ptr()
+                .sub(size_of::<usize>())
+                .cast::<usize>()
+                .write(vtable_ptr);
+            ptr.as_ptr().cast::<S>().write(value);
+
+            Self {
+                ptr,
+                _marker: PhantomData,
             }
         }
     }
@@ -78,7 +86,17 @@ where
         Self::from(value)
     }
 
-    const fn meta(&self) -> *mut u8 {
+    pub(crate) const fn raw_fd(&self) -> i32 {
+        unsafe {
+            self.ptr
+                .as_ptr()
+                .sub(2 * size_of::<usize>())
+                .cast::<i32>()
+                .read()
+        }
+    }
+
+    const fn meta(&self) -> usize {
         //  Safety:
         //  - At least 8 bytes are allocated ahead of the pointer.
         //  - We know that Meta will be aligned because the middle pointer is aligned to the greater
@@ -86,7 +104,13 @@ where
         //    needed to align the header. Subtracting the header size from the aligned data pointer
         //    will always result in an aligned header pointer, it just may not point to the
         //    beginning of the allocation.
-        unsafe { self.ptr.as_ptr().sub(8) }
+        unsafe {
+            self.ptr
+                .as_ptr()
+                .sub(size_of::<usize>())
+                .cast::<usize>()
+                .read()
+        }
     }
 
     const fn value(&self) -> *mut u8 {
@@ -99,7 +123,7 @@ impl<Ep: EventpOps> Deref for ThinBoxSubscriber<Ep> {
 
     fn deref(&self) -> &Self::Target {
         let value = self.value();
-        let metadata = unsafe { self.meta().cast::<usize>().read() };
+        let metadata = self.meta();
         unsafe {
             let fat_ptr =
                 mem::transmute::<(*mut u8, usize), *const dyn Subscriber<Ep>>((value, metadata));
@@ -111,7 +135,7 @@ impl<Ep: EventpOps> Deref for ThinBoxSubscriber<Ep> {
 impl<Ep: EventpOps> DerefMut for ThinBoxSubscriber<Ep> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         let value = self.value();
-        let metadata = unsafe { self.meta().cast::<usize>().read() };
+        let metadata = self.meta();
         unsafe {
             let fat_ptr =
                 mem::transmute::<(*mut u8, usize), *mut dyn Subscriber<Ep>>((value, metadata));
@@ -137,7 +161,7 @@ impl<Ep: EventpOps> Drop for ThinBoxSubscriber<Ep> {
 
                 unsafe {
                     // SAFETY: Layout must have been computable if we're in drop
-                    let (layout, value_offset) = Layout::new::<usize>()
+                    let (layout, value_offset) = Layout::new::<(usize, usize)>()
                         .extend(self.value_layout)
                         .unwrap_unchecked();
 
@@ -180,6 +204,8 @@ where
     Ep: EventpOps,
 {
     fn from(old_value: Box<dyn Subscriber<Ep>>) -> Self {
+        let raw_fd = old_value.as_fd().as_raw_fd();
+
         let fat_ptr = old_value.deref();
         let vtable_ptr =
             unsafe { mem::transmute::<&dyn Subscriber<Ep>, (usize, usize)>(fat_ptr).1 };
@@ -189,7 +215,7 @@ where
             panic!("ZST not supported");
         }
 
-        let (layout, value_offset) = Layout::new::<usize>()
+        let (layout, value_offset) = Layout::new::<(usize, usize)>()
             .extend(value_layout)
             .expect("Failed to create combined layout");
 
@@ -209,7 +235,14 @@ where
             ptr::copy_nonoverlapping(old_value, ptr.as_ptr(), value_layout.size());
             alloc::dealloc(old_value, value_layout);
 
-            ptr.as_ptr().sub(8).cast::<usize>().write(vtable_ptr);
+            ptr.as_ptr()
+                .sub(2 * size_of::<usize>())
+                .cast::<i32>()
+                .write(raw_fd);
+            ptr.as_ptr()
+                .sub(size_of::<usize>())
+                .cast::<usize>()
+                .write(vtable_ptr);
 
             Self {
                 ptr,
