@@ -68,10 +68,8 @@ where
         }
     }
 
-    #[allow(clippy::boxed_local)]
     pub fn from_box<S: Subscriber<Ep>>(value: Box<S>) -> Self {
-        // Take down from heap firstly.
-        Self::new(*value)
+        Self::from(value)
     }
 
     pub fn from_box_dyn(value: Box<dyn Subscriber<Ep>>) -> Self {
@@ -165,13 +163,13 @@ impl<Ep: EventpOps> Drop for ThinBoxSubscriber<Ep> {
     }
 }
 
-impl<S, Ep> From<S> for ThinBoxSubscriber<Ep>
+impl<S, Ep> From<Box<S>> for ThinBoxSubscriber<Ep>
 where
     S: Subscriber<Ep>,
     Ep: EventpOps,
 {
-    fn from(value: S) -> Self {
-        Self::new(value)
+    fn from(value: Box<S>) -> Self {
+        Self::new(*value)
     }
 }
 
