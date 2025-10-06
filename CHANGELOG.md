@@ -3,7 +3,23 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 ---
-## [1.0.0-rc.3](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.2..1.0.0-rc.3) - 2025-10-02
+## [1.0.0-rc.4](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.3..1.0.0-rc.4) - 2025-10-06
+
+### Documentation
+
+- Add or adjust some documentation - ([6b2f2f0](https://github.com/FuuuOverclocking/eventp/commit/6b2f2f02a8a7bd87333518fe9525e5a48f5d72e1)) - Fuu
+
+### Refactoring
+
+-  [**breaking**]Remove bin_subscriber - ([53fc2fa](https://github.com/FuuuOverclocking/eventp/commit/53fc2fa5d733080ff85ce1532820410cc5ca69d1)) - Fuu
+-  [**breaking**]impl From<Box<S>> for ThinBoxSubscriber instead of From<S> - ([6751ff7](https://github.com/FuuuOverclocking/eventp/commit/6751ff76395f2d3dda0a8378a5eb0aab34578fc1)) - Fuu
+
+### Ci
+
+- Update GitHub workflows - ([f5f0a20](https://github.com/FuuuOverclocking/eventp/commit/f5f0a2057ff618fb9beb3488525362e5fe542d76)) - Fuu
+
+---
+## [1.0.0-rc.3](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.2..v1.0.0-rc.3) - 2025-10-02
 
 ### Documentation
 
