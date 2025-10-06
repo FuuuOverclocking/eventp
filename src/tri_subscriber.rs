@@ -1,3 +1,5 @@
+//! A ternary subscriber, composed of a file descriptor, interest, and a handler.
+
 use std::cell::Cell;
 use std::marker::PhantomData;
 use std::os::fd::{AsFd, BorrowedFd};
@@ -5,12 +7,33 @@ use std::os::fd::{AsFd, BorrowedFd};
 use crate::subscriber::{Handler, HasInterest};
 use crate::{Event, EventpOps, Interest, Pinned};
 
+/// A ternary subscriber, composed of a file descriptor, interest, and a handler.
+///
+/// This is a convenient helper struct, typically created with a builder-like
+/// syntax such as:
+///
+/// ```rust,ignore
+/// interest()
+///     .edge_triggered()
+///     .read()
+///     .with_fd(fd)
+///     .with_handler(handler)
+/// ```
+///
+/// It is rarely constructed manually.
 pub struct TriSubscriber<Fd, Args, F> {
-    pub(crate) fd: Fd,
-    pub(crate) interest: Cell<Interest>,
-    pub(crate) handler: FnHandler<Args, F>,
+    pub fd: Fd,
+    pub interest: Cell<Interest>,
+    pub handler: FnHandler<Args, F>,
 }
 
+/// A wrapper for `FnMut` closures.
+///
+/// The generic parameters should rarely be a concern. However, for those interested
+/// in the details, `Args` is used to lock in the signature of `F`. A nuance of
+/// Rust is that `trait FnMut<Args>` can be implemented multiple times for the
+/// same type (though this is rarely done!), which can make it difficult for
+/// static analysis to determine the signature of a type as a closure.
 pub struct FnHandler<Args, F> {
     f: F,
     _marker: PhantomData<fn(Args)>,
@@ -53,9 +76,12 @@ impl Interest {
     }
 }
 
+/// A trait for types that can be combined with a file descriptor.
 pub trait WithFd {
+    /// The resulting output type after combining with a file descriptor.
     type Out<Fd>;
 
+    /// Combines `self` with a file descriptor.
     fn with_fd<Fd: AsFd>(self, fd: Fd) -> Self::Out<Fd>;
 }
 
@@ -71,9 +97,12 @@ impl<Args, F> WithFd for (Interest, FnHandler<Args, F>) {
     }
 }
 
+/// A trait for types that can be combined with a handler.
 pub trait WithHandler {
+    /// The resulting output type after combining with a handler.
     type Out<Args, F>;
 
+    /// Combines `self` with an event handler.
     fn with_handler<Args, F>(self, f: F) -> Self::Out<Args, F>;
 }
 

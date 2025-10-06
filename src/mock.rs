@@ -35,7 +35,7 @@ use crate::thin::ThinBoxSubscriber;
 use crate::{EventpOps, Interest};
 
 mockall::mock! {
-    /// See [module level docs](crate::mock) for more information.
+    /// See [module level docs](self) for more information.
     pub Eventp {}
 
     impl EventpOps for Eventp {

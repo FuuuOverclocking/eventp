@@ -32,13 +32,16 @@
 //!         .with_fd(efd)
 //!         .with_handler(|efd: &mut EventFd| {
 //!             efd.read().unwrap();
-//!             do_something();
+//!             on_eventfd();
 //!         })
 //!         .register_into(&mut eventp)?;
 //!
 //!     eventp.run_forever()
 //! }
-//! # fn do_something() {}
+//!
+//! fn on_eventfd() {
+//!     // do somethings...
+//! }
 //! ```
 
 #![cfg_attr(docsrs, feature(doc_cfg))]

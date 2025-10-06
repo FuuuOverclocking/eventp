@@ -10,16 +10,20 @@ use crate::Interest;
 ///
 /// In this crate, [`Eventp`] and [`MockEventp`] are the primary implementors.
 /// Therefore, you should prefer using the abstract `EventpOps` over the concrete
-/// `Eventp` in function signatures to make them more testable.
+/// `Eventp` in function signatures to make them easy to test.
 ///
 /// # Relationship with [`Registry`]
 ///
-/// The [`Registry`] trait is implemented for types that implement `EventpOps` and for
-/// [`Pinned<'_, impl EventpOps>`].
+/// Roughly,
 ///
-/// For example, since the types [`Eventp`] and [`MockEventp`] implement `EventpOps`,
-/// they also implement [`Registry`]. Similarly, `Pinned<'_, Eventp>` and
-/// `Pinned<'_, MockEventp>` also implement `Registry`.
+/// ```rust,ignore
+/// Registry = EventpOps + { Pinned<'_, impl EventpOps> }.
+/// ```
+///
+/// In this crate, [`Eventp`] and [`MockEventp`] implement `EventpOps`.
+///
+/// Thus, [`Eventp`], [`MockEventp`], `Pinned<'_, Eventp>` and `Pinned<'_, MockEventp>`
+/// implement [`Registry`].
 ///
 /// [`Eventp`]: crate::Eventp
 /// [`MockEventp`]: crate::MockEventp

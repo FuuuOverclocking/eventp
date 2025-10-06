@@ -7,12 +7,16 @@ use crate::{EventpOps, Pinned, Subscriber};
 ///
 /// # Relationship with [`EventpOps`]
 ///
-/// The `Registry` trait is implemented for types that implement `EventpOps` and for
-/// [`Pinned<'_, impl EventpOps>`].
+/// Roughly,
 ///
-/// For example, since the types [`Eventp`] and [`MockEventp`] implement `EventpOps`,
-/// they also implement `Registry`. Similarly, `Pinned<'_, Eventp>` and
-/// `Pinned<'_, MockEventp>` also implement `Registry`.
+/// ```rust,ignore
+/// Registry = EventpOps + { Pinned<'_, impl EventpOps> }.
+/// ```
+///
+/// In this crate, [`Eventp`] and [`MockEventp`] implement [`EventpOps`].
+///
+/// Thus, [`Eventp`], [`MockEventp`], `Pinned<'_, Eventp>` and `Pinned<'_, MockEventp>`
+/// implement `Registry`.
 ///
 /// [`Eventp`]: crate::Eventp
 /// [`MockEventp`]: crate::MockEventp
