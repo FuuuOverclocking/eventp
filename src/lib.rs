@@ -1,37 +1,36 @@
-//! A safe, zero-cost, and high-performance event loop library for Linux.
+//! Safe Rust abstraction over Linux's `epoll`, offering a true zero-cost event dispatch mechanism.
 //!
-//! This crate provides a low-level abstraction over `epoll`, designed to be
-//! both efficient and easy to use. It leverages Rust's type system to ensure
-//! safety while employing advanced techniques for zero-cost abstractions.
+//! # Motivation
 //!
-//! # Key Features
+//! `epoll` allows the user to associate a custom `u64` with a file descriptor (`fd`) when adding it.
+//! This is intended to store the address of an event context object, but in Rust,
+//! I've rarely seen it used correctly. Instead, it's often used to store things like the `fd`
+//! itself, a `token` ([mio](https://docs.rs/mio/latest/mio/)), or a `subscriber id`
+//! ([event_manager](https://docs.rs/event-manager/latest/event_manager/)).
+//! This introduces unnecessary overhead of a branch instruction, or even one or two `HashMap` lookups.
 //!
-//! - **Type-safe API**: Wraps raw `epoll` calls in a safe, idiomatic Rust interface.
-//! - **Zero-cost Abstractions**: Uses traits, thin pointers (`ThinBoxSubscriber`),
-//!   and compile-time mechanisms to minimize runtime overhead.
-//! - **Testability**: Designed with dependency injection and mocking in mind.
-//! - **Re-entrancy Safety**: The event loop is safe to modify from within event handlers.
-//!
-//! # Core Concepts
-//!
-//! - [`Eventp`]: The main event loop reactor. It manages file descriptors and dispatches events.
-//! - [`Interest`]: Specifies the readiness events (e.g., readable, writable) to monitor.
-//! - [`Subscriber`]: Represents an I/O source (like a `TcpStream`) combined with an event handler.
+//! This is because those crates find it difficult to properly handle ownership and fat pointer
+//! issues. This crate aims to demonstrate how to leverage the Rust type system to handle these
+//! issues safely and with zero cost, and how to use a few tricks to wrap it all in a fluent,
+//! test-friendly API. See the [Technical](crate::_technical) chapter for the principles behind this approach.
 //!
 //! # Examples
 //!
+//! See a full example with a demo of writing unit tests on GitHub:
+//! [examples/echo-server.rs](https://github.com/FuuuOverclocking/eventp/blob/main/examples/echo-server.rs).
+//!
 //! ```rust
 //! # use std::io;
-//! # use eventp::{interest, tri_subscriber::WithHandler, Eventp, Subscriber};
+//! use eventp::{interest, tri_subscriber::WithHandler, Eventp, Subscriber};
 //! use nix::sys::eventfd::EventFd;
 //!
-//! fn thread_main(efd: EventFd) -> io::Result<()> {
+//! fn thread_main(eventfd: EventFd) -> io::Result<()> {
 //!     let mut eventp = Eventp::default();
 //!     interest()
 //!         .read()
-//!         .with_fd(efd)
-//!         .with_handler(|efd: &mut EventFd| {
-//!             efd.read().unwrap();
+//!         .with_fd(eventfd)
+//!         .with_handler(|eventfd: &mut EventFd| {
+//!             eventfd.read().unwrap();
 //!             on_eventfd();
 //!         })
 //!         .register_into(&mut eventp)?;
@@ -43,6 +42,32 @@
 //!     // do somethings...
 //! }
 //! ```
+//!
+//! # Concepts
+//!
+//! 1.  **The [`Eventp`] Reactor**: The central event loop that manages all I/O sources.
+//! 2.  **The [`Subscriber`]**: A combination of an I/O source (anything that is [`AsFd`](std::os::fd::AsFd)),
+//!     its event [`Interest`] (e.g., readable, writable), and a [`Handler`](subscriber::Handler) function.
+//!     -   [`Interest`] vs [`Event`]: Both wrap [`EpollFlags`]. `Interest` is what you ask the OS to
+//!         monitor (e.g., `EPOLLIN`). `Event` is what the OS reports back (e.g., `EPOLLIN | EPOLLHUP`).
+//!         The two sets overlap but are not identical.
+//!
+//! ![subscriber-eventp-relationship](https://raw.githubusercontent.com/FuuuOverclocking/eventp/refs/heads/tech/docs/images/subscriber-eventp.svg)
+//!
+//! ## Built-in Subscribers
+//!
+//! -   [`tri_subscriber`]: The helper subscriber constructed by the builder-like API starting from
+//!     [`interest()`], where is the **recommended** API entry point.
+//! -   `remote_endpoint` <span class="stab portability" title="Available on crate feature `remote-endpoint` only"><code>remote-endpoint</code></span>:
+//!     A remote control for an `Eventp` instance running on another thread, allows sending closures
+//!     to the `Eventp` thread to be executed.
+//!
+//! ## Testability and Type Hierarchy
+//!
+//! ![type-hierarchy](https://raw.githubusercontent.com/FuuuOverclocking/eventp/refs/heads/tech/docs/images/type-hierarchy.svg)
+//!
+//! 为了让编写单元测试更容易，这个 crate 基于 [mockall] 提供了 [`MockEventp`]，在 `mock` feature 下面。因此在函数签名中，
+//! 你大多数时候应该使用更抽象的 [`EventpOps`] 来
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(rustdoc::broken_intra_doc_links)]
