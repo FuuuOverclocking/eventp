@@ -1,9 +1,7 @@
 use crate::epoll::EpollFlags;
 
-/// Represents interest in I/O readiness events for a file descriptor.
-///
-/// This is a wrapper around [`EpollFlags`] that provides a fluent builder API
-/// for constructing an interest set (e.g., readable, writable, edge-triggered).
+/// A wrapper around [`EpollFlags`], represents interest in I/O readiness events
+/// for a file descriptor.
 ///
 /// References for epoll flags provided on each method's documentation, or see
 /// [epoll_ctl(2)](https://man.archlinux.org/man/epoll_ctl.2.en#EPOLLIN).

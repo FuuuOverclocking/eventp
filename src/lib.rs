@@ -1,48 +1,87 @@
-//! A safe, zero-cost, and high-performance event loop library for Linux.
+//! Safe Rust abstraction over Linux's `epoll`, offering a true zero-cost event dispatch mechanism.
 //!
-//! This crate provides a low-level abstraction over `epoll`, designed to be
-//! both efficient and easy to use. It leverages Rust's type system to ensure
-//! safety while employing advanced techniques for zero-cost abstractions.
+//! # Motivation
 //!
-//! # Key Features
+//! `epoll` allows the user to associate a custom `u64` with a file descriptor (`fd`) when adding it.
+//! This is intended to store the address of an event context object, but in Rust,
+//! I've rarely seen it used correctly. Instead, it's often used to store things like the `fd`
+//! itself, a `token` ([mio](https://docs.rs/mio/latest/mio/)), or a `subscriber id`
+//! ([event_manager](https://docs.rs/event-manager/latest/event_manager/)).
+//! This introduces unnecessary overhead of a branch instruction, or even one or two `HashMap` lookups.
 //!
-//! - **Type-safe API**: Wraps raw `epoll` calls in a safe, idiomatic Rust interface.
-//! - **Zero-cost Abstractions**: Uses traits, thin pointers (`ThinBoxSubscriber`),
-//!   and compile-time mechanisms to minimize runtime overhead.
-//! - **Testability**: Designed with dependency injection and mocking in mind.
-//! - **Re-entrancy Safety**: The event loop is safe to modify from within event handlers.
-//!
-//! # Core Concepts
-//!
-//! - [`Eventp`]: The main event loop reactor. It manages file descriptors and dispatches events.
-//! - [`Interest`]: Specifies the readiness events (e.g., readable, writable) to monitor.
-//! - [`Subscriber`]: Represents an I/O source (like a `TcpStream`) combined with an event handler.
+//! This is often due to the challenges of safely managing ownership and fat pointers in Rust when
+//! interfacing with pointer-based C APIs. This crate aims to demonstrate how to leverage the Rust
+//! type system to handle these issues safely and with zero cost, and how to use a few tricks to wrap
+//! it all in a fluent, test-friendly API. See the [Technical](_technical) chapter for the principles
+//! behind this approach.
 //!
 //! # Examples
 //!
+//! See a full example with a demo of writing unit tests on GitHub:
+//! [examples/echo-server.rs](https://github.com/FuuuOverclocking/eventp/blob/main/examples/echo-server.rs).
+//!
 //! ```rust
 //! # use std::io;
-//! # use eventp::{interest, tri_subscriber::WithHandler, Eventp, Subscriber};
+//! use eventp::{interest, tri_subscriber::WithHandler, Eventp, Subscriber};
 //! use nix::sys::eventfd::EventFd;
 //!
-//! fn thread_main(efd: EventFd) -> io::Result<()> {
+//! fn thread_main(eventfd: EventFd) -> io::Result<()> {
 //!     let mut eventp = Eventp::default();
 //!     interest()
 //!         .read()
-//!         .with_fd(efd)
-//!         .with_handler(|efd: &mut EventFd| {
-//!             efd.read().unwrap();
-//!             on_eventfd();
-//!         })
+//!         .with_fd(eventfd)
+//!         .with_handler(on_eventfd)
 //!         .register_into(&mut eventp)?;
 //!
 //!     eventp.run_forever()
 //! }
 //!
-//! fn on_eventfd() {
+//! fn on_eventfd(
+//!     eventfd: &mut EventFd,
+//!     // Other available parameters: Interest, Event, Pinned<'_, impl EventpOps>
+//! ) {
 //!     // do somethings...
 //! }
 //! ```
+//!
+//! The `with_handler` method supports a form of dependency injection for the handler function.
+//! You can define a handler that accepts only the parameters it needs, in any order. See the
+//! [`tri_subscriber`] module for more details.
+//!
+//! # Concepts
+//!
+//! 1.  **The [`Eventp`] Reactor**: The central event loop that manages all I/O sources.
+//! 2.  **The [`Subscriber`]**: A combination of an I/O source (anything that is [`AsFd`](std::os::fd::AsFd)),
+//!     its event [`Interest`] (e.g., readable, writable), and a [`Handler`](subscriber::Handler) function.
+//!     -   [`Interest`] vs [`Event`]: Both wrap [`EpollFlags`]. `Interest` is what you ask the OS to
+//!         monitor (e.g., `EPOLLIN`). `Event` is what the OS reports back (e.g., `EPOLLIN | EPOLLHUP`).
+//!         The two sets overlap but are not identical.
+//!
+//! ![subscriber-eventp-relationship](https://raw.githubusercontent.com/FuuuOverclocking/eventp/refs/heads/main/docs/images/subscriber-eventp.svg)
+//!
+//! # Built-in Subscribers
+//!
+//! -   [`tri_subscriber`]: The helper subscriber constructed by the builder-like API starting from
+//!     [`interest()`], where is the **recommended** API entry point.
+//! -   `remote_endpoint` <span class="stab portability" title="Available on crate feature `remote-endpoint` only"><code>remote-endpoint</code></span>:
+//!     A remote control for an `Eventp` instance running on another thread, allows sending closures
+//!     to the `Eventp` thread to be executed.
+//!
+//! # Testability and Type Hierarchy
+//!
+//! ![type-hierarchy](https://raw.githubusercontent.com/FuuuOverclocking/eventp/refs/heads/main/docs/images/type-hierarchy.svg)
+//!
+//! To make unit testing easier, this crate provides [`MockEventp`], a mock implementation based on
+//! [mockall], available under the <span class="stab portability" title="Available on crate feature `mock` only"><code>mock</code></span>
+//! feature. Therefore, it's recommended to use the abstract [`EventpOps`] trait in function signatures.
+//! This allows your code to accept both the real `Eventp` and `MockEventp`, making it highly testable.
+//!
+//! [`Pinned<'_, impl EventpOps>`](Pinned) is the handle passed to your handler when an event is triggered.
+//! It acts like `&mut impl EventpOps` but prevents operations that could move the underlying Eventp
+//! instance (like `std::mem::replace`), thus ensuring memory safety.
+//!
+//! The diagram also mentions [`EventpOpsAdd`]. You will rarely use this trait directly. It's a helper
+//! trait that allows methods like `register_into()` to accept both types.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(rustdoc::broken_intra_doc_links)]
@@ -93,64 +132,24 @@ use crate::thin::ThinBoxSubscriber;
 
 const DEFAULT_EVENT_BUF_CAPACITY: usize = 256;
 
-/// The central event loop reactor, built on top of `epoll`.
+/// The central event loop reactor, built on top of Linux's `epoll`.
 ///
 /// `Eventp` manages a set of registered I/O sources (file descriptors) and their
 /// associated interests and handlers. It waits for I/O readiness events and dispatches
 /// them to the corresponding handlers.
 ///
-/// # Safety and Pinning
-///
-/// This struct is `!Unpin`. Once an `Eventp` instance is created, its memory location
-/// must not be moved. This is crucial because `epoll` is given raw pointers to the
-/// heap-allocated subscribers owned by `Eventp`. Moving `Eventp` would invalidate
-/// these pointers, leading to undefined behavior.
-///
-/// To use `Eventp` safely, you must pin it in memory, for example, by putting it
-/// in a `Box` and using `Box::pin`, or by using stack-pinning utilities.
-///
-/// # Internal Mechanics
-///
-/// `Eventp` stores `Subscriber`s in a hash map. To avoid self-referential borrowing
-/// issues (where a handler needs a mutable reference to the `Eventp` that owns it),
-/// a pointer laundering technique is used:
-///
-/// 1.  When a subscriber is added, its `ThinBoxSubscriber` (a thin pointer) is
-///     transmuted into a `usize` and stored in the `epoll` event data.
-/// 2.  When an event is received, the `usize` is transmuted back into a `ThinBoxSubscriber`.
-/// 3.  The handler is called. `mem::forget` is used on the reconstructed subscriber to
-///     prevent a double-free, as ownership remains with the `registered` map.
-///
-/// This design enables handlers to safely modify the `Eventp` instance (e.g., add or
-/// remove other subscribers) via the `Pinned<impl EventpOps>` handle.
+/// See the [crate-level documentation](crate) for a detailed overview of the design,
+/// motivation, and key concepts.
 pub struct Eventp {
-    /// A map from a raw file descriptor to its heap-allocated subscriber.
-    /// This is the single source of truth for subscriber ownership.
     registered: FxHashMap<RawFd, ThinBoxSubscriber<Eventp>>,
-    /// The underlying `epoll` file descriptor wrapper.
     epoll: Epoll,
-    /// A pre-allocated buffer for receiving events from `epoll_wait`.
     event_buf: Vec<MaybeUninit<EpollEvent>>,
-    /// State machine to safely handle modifications while dispatching events.
-    ///
-    /// When `Some`, the event loop is iterating through events, and any removals
-    /// are deferred. When `None`, modifications can be performed immediately.
     handling: Option<Handling>,
-    /// Ensures that `Eventp` is `!Unpin`.
-    ///
-    /// This prevents the `Eventp` instance from being moved in memory after it has
-    /// been created, which is critical for the safety of the raw pointers stored
-    /// in `epoll`.
     _pinned: PhantomPinned,
 }
 
-/// The internal state used during event dispatching to handle re-entrancy.
 struct Handling {
-    /// The file descriptor of the event currently being handled.
-    /// Used to prevent a handler from replacing its own subscriber.
     fd: RawFd,
-    /// A list of file descriptors to be removed after the dispatch loop finishes.
-    /// This defers removal operations to avoid iterator invalidation on `registered`.
     to_remove: Vec<RawFd>,
 }
 
@@ -168,11 +167,6 @@ impl Default for Eventp {
 
 impl Eventp {
     /// Creates a new `Eventp` instance with a specified event buffer capacity and `epoll` flags.
-    ///
-    /// # Parameters
-    ///
-    /// * `capacity`: The maximum number of events to receive in a single `epoll_wait` call.
-    /// * `flags`: Flags for the `epoll_create1` syscall, e.g., `EPOLL_CLOEXEC`.
     pub fn new(capacity: usize, flags: EpollCreateFlags) -> io::Result<Self> {
         let mut buf = Vec::with_capacity(capacity);
         // SAFETY: The buffer is immediately used with `epoll_wait`, which will
@@ -302,6 +296,19 @@ impl Eventp {
 }
 
 impl EventpOpsAdd<Self> for Eventp {
+    /// Registers a new subscriber with the event loop.
+    ///
+    /// This method takes ownership of the `subscriber` and registers its file descriptor
+    /// with the underlying `epoll` instance. The subscriber's thin pointer is stored
+    /// in the `epoll` event data for zero-cost dispatch.
+    ///
+    /// If a subscriber with the same file descriptor already exists, it will be replaced.
+    ///
+    /// # Re-entrancy
+    ///
+    /// This method is safe to call from within an event handler. However, a handler
+    /// cannot replace its own subscriber while it is being executed. Attempting to do so
+    /// will result in an `io::Error`.
     fn add(&mut self, subscriber: ThinBoxSubscriber<Self>) -> io::Result<()> {
         let raw_fd = subscriber.as_fd().as_raw_fd();
 
@@ -336,6 +343,15 @@ impl EventpOpsAdd<Self> for Eventp {
 }
 
 impl EventpOps for Eventp {
+    /// Modifies the event interest for an existing subscriber.
+    ///
+    /// This updates the `epoll` registration for the given `fd` to monitor for events
+    /// specified by the new `interest`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `io::Error` with `ErrorKind::NotFound` if no subscriber is registered
+    /// for the given `fd`.
     fn modify(&mut self, fd: RawFd, interest: Interest) -> io::Result<()> {
         let subscriber = self
             .registered
@@ -353,6 +369,16 @@ impl EventpOps for Eventp {
         Ok(())
     }
 
+    /// Unregisters a subscriber from the event loop.
+    ///
+    /// This removes the file descriptor `fd` from the `epoll` instance and drops the
+    /// associated subscriber, freeing its resources.
+    ///
+    /// # Re-entrancy
+    ///
+    /// This method is safe to call from within an event handler. If called during event
+    /// dispatch, the removal is deferred until all events in the current batch have been
+    /// processed. This prevents iterator invalidation on the internal subscriber map.
     fn delete(&mut self, fd: RawFd) -> io::Result<()> {
         // Use a direct syscall for `EPOLL_CTL_DEL` as `nix`'s `epoll.delete`
         // requires a `AsFd` source, which we may not have if the source is already dropped.
