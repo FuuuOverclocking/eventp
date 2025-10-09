@@ -3,7 +3,23 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 ---
-## [1.0.0-rc.5](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.4..1.0.0-rc.5) - 2025-10-09
+## [1.0.0-rc.6](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.5..1.0.0-rc.6) - 2025-10-09
+
+### Documentation
+
+- Add images and text for technical.zh.md - ([3826c8e](https://github.com/FuuuOverclocking/eventp/commit/3826c8e2652aa899a6d5e3240558e637a6a7391a)) - Fuu
+
+### Features
+
+- Add remote-endpoint feature - ([2b0f4db](https://github.com/FuuuOverclocking/eventp/commit/2b0f4db6846691924025686accd71de5ba96f303)) - Fuu
+
+### Refactoring
+
+- Avoid an unnecessary virtual function call - ([3d6ec14](https://github.com/FuuuOverclocking/eventp/commit/3d6ec140a442d760d3d240e5d1ebdb51ee71cc12)) - Fuu
+- Add raw fd as first field to layout of ThinBoxSubscriber.. - ([8df722f](https://github.com/FuuuOverclocking/eventp/commit/8df722ffdd7c2c78389e3f386df527f451c83810)) - Fuu
+
+---
+## [1.0.0-rc.5](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.4..v1.0.0-rc.5) - 2025-10-09
 
 ### Documentation
 
