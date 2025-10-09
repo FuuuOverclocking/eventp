@@ -3,7 +3,18 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 ---
-## [1.0.0-rc.4](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.3..1.0.0-rc.4) - 2025-10-06
+## [1.0.0-rc.5](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.4..1.0.0-rc.5) - 2025-10-09
+
+### Documentation
+
+- Add docs and images for crate - ([d5a5c5e](https://github.com/FuuuOverclocking/eventp/commit/d5a5c5e27f113e9bd75aefb8c301f2cfb5739f37)) - Fuu
+
+### Refactoring
+
+-  [**breaking**]Role of `Registry` replaced by `EventpOpsAdd` - ([3205579](https://github.com/FuuuOverclocking/eventp/commit/32055792b7d64e8e84df76f21de2aafd02a1bd24)) - Fuu
+
+---
+## [1.0.0-rc.4](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.3..v1.0.0-rc.4) - 2025-10-06
 
 ### Documentation
 
