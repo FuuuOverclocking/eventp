@@ -29,8 +29,11 @@ use crate::Interest;
 /// [`MockEventp`]: crate::MockEventp
 /// [`Registry`]: crate::Registry
 /// [`Pinned<'_, impl EventpOps>`]: crate::Pinned
-pub trait EventpOps: Sized {
-    fn add(&mut self, subscriber: ThinBoxSubscriber<Self>) -> io::Result<()>;
+pub trait EventpOps: EventpOpsAdd<Self> + Sized {
     fn modify(&mut self, fd: RawFd, interest: Interest) -> io::Result<()>;
     fn delete(&mut self, fd: RawFd) -> io::Result<()>;
+}
+
+pub trait EventpOpsAdd<Ep: EventpOps> {
+    fn add(&mut self, subscriber: ThinBoxSubscriber<Ep>) -> io::Result<()>;
 }

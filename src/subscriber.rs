@@ -18,16 +18,17 @@ use std::cell::Cell;
 use std::io;
 use std::os::fd::AsFd;
 
-use crate::{Event, EventpOps, Interest, Pinned, Registry};
+use crate::thin::ThinBoxSubscriber;
+use crate::{Event, EventpOps, EventpOpsAdd, Interest, Pinned};
 
 /// See [module level docs](self) for more information.
 pub trait Subscriber<Ep: EventpOps>: AsFd + HasInterest + Handler<Ep> {
     fn register_into<R>(self, eventp: &mut R) -> io::Result<()>
     where
         Self: Sized,
-        R: Registry<Ep = Ep>,
+        R: EventpOpsAdd<Ep>,
     {
-        eventp.register(self)
+        eventp.add(ThinBoxSubscriber::new(self))
     }
 }
 

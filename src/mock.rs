@@ -32,14 +32,17 @@ use std::io;
 use std::os::fd::RawFd;
 
 use crate::thin::ThinBoxSubscriber;
-use crate::{EventpOps, Interest};
+use crate::{EventpOps, EventpOpsAdd, Interest};
 
 mockall::mock! {
     /// See [module level docs](self) for more information.
     pub Eventp {}
 
-    impl EventpOps for Eventp {
+    impl EventpOpsAdd<Self> for Eventp {
         fn add(&mut self, subscriber: ThinBoxSubscriber<Self>) -> io::Result<()>;
+    }
+
+    impl EventpOps for Eventp {
         fn modify(&mut self, fd: RawFd, interest: Interest) -> io::Result<()>;
         fn delete(&mut self, fd: RawFd) -> io::Result<()>;
     }

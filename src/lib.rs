@@ -54,7 +54,6 @@ mod interest;
 #[cfg(feature = "mock")]
 pub mod mock;
 mod pinned;
-mod registry;
 pub mod subscriber;
 pub mod thin;
 pub mod tri_subscriber;
@@ -84,12 +83,11 @@ use rustc_hash::FxHashMap;
 
 use crate::epoll::*;
 pub use crate::event::Event;
-pub use crate::eventp_ops::EventpOps;
+pub use crate::eventp_ops::{EventpOps, EventpOpsAdd};
 pub use crate::interest::{interest, Interest};
 #[cfg(feature = "mock")]
 pub use crate::mock::MockEventp;
 pub use crate::pinned::Pinned;
-pub use crate::registry::Registry;
 pub use crate::subscriber::Subscriber;
 use crate::thin::ThinBoxSubscriber;
 
@@ -303,8 +301,8 @@ impl Eventp {
     }
 }
 
-impl EventpOps for Eventp {
-    fn add(&mut self, subscriber: ThinBoxSubscriber<Eventp>) -> io::Result<()> {
+impl EventpOpsAdd<Self> for Eventp {
+    fn add(&mut self, subscriber: ThinBoxSubscriber<Self>) -> io::Result<()> {
         let raw_fd = subscriber.as_fd().as_raw_fd();
 
         // Re-entrancy check: prevent a handler from replacing its own subscriber
@@ -335,7 +333,9 @@ impl EventpOps for Eventp {
 
         Ok(())
     }
+}
 
+impl EventpOps for Eventp {
     fn modify(&mut self, fd: RawFd, interest: Interest) -> io::Result<()> {
         let subscriber = self
             .registered
