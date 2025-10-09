@@ -362,7 +362,19 @@ impl EventpOps for Eventp {
         let addr = unsafe { mem::transmute_copy::<_, usize>(subscriber) };
         let mut epoll_event = EpollEvent::new(interest.bitflags(), addr as u64);
 
-        self.epoll.modify(subscriber.as_fd(), &mut epoll_event)?;
+        // SAFETY: This is a direct FFI call to `epoll_ctl`. The arguments are
+        // constructed correctly, so it's as safe as the underlying syscall.
+        let ret = unsafe {
+            libc::epoll_ctl(
+                self.epoll.0.as_raw_fd(),
+                libc::EPOLL_CTL_MOD,
+                fd,
+                &mut epoll_event as *mut _ as _,
+            )
+        };
+        if ret == -1 {
+            return Err(io::Error::last_os_error());
+        }
         // Update the interest stored within the subscriber itself.
         subscriber.interest().set(interest);
 
