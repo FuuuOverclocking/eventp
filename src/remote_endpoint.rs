@@ -248,11 +248,13 @@ mod tests {
     const fn assert_send<T: Send>() {}
     const fn assert_sync<T: Send>() {}
 
-    const _: () = assert_send::<RemoteEndpoint<Eventp>>();
-    const _: () = assert_sync::<RemoteEndpoint<Eventp>>();
+    const _: () = {
+        assert_send::<RemoteEndpoint<Eventp>>();
+        assert_sync::<RemoteEndpoint<Eventp>>();
 
-    #[cfg(feature = "mock")]
-    const _: () = assert_send::<RemoteEndpoint<MockEventp>>();
-    #[cfg(feature = "mock")]
-    const _: () = assert_sync::<RemoteEndpoint<MockEventp>>();
+        #[cfg(feature = "mock")]
+        assert_send::<RemoteEndpoint<MockEventp>>();
+        #[cfg(feature = "mock")]
+        assert_sync::<RemoteEndpoint<MockEventp>>();
+    };
 }

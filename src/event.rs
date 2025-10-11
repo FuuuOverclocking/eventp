@@ -1,4 +1,4 @@
-use crate::epoll::EpollFlags;
+use crate::epoll::{EpollEvent, EpollFlags};
 
 /// A readiness event from the I/O reactor.
 ///
@@ -14,6 +14,14 @@ pub struct Event(EpollFlags);
 impl From<EpollFlags> for Event {
     fn from(value: EpollFlags) -> Self {
         Self::new(value)
+    }
+}
+
+impl From<&EpollEvent> for Event {
+    fn from(value: &EpollEvent) -> Self {
+        let ptr = value as *const _ as *const libc::epoll_event;
+        // SAFETY: EpollEvent is a transparent wrapper around libc::epoll_event.
+        Self(EpollFlags::from_bits_retain(unsafe { *ptr }.events as i32))
     }
 }
 

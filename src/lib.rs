@@ -274,10 +274,7 @@ impl Eventp {
             // Dispatch the event to the subscriber's handler.
             // SAFETY: The `self` pointer is pinned, so `Pin::new_unchecked` is sound.
             // The handler receives a `Pinned<Eventp>` to safely interact with the loop.
-            subscriber.handle(
-                ev.events().into(),
-                Pinned(unsafe { Pin::new_unchecked(self) }),
-            );
+            subscriber.handle(Event::from(ev), Pinned(unsafe { Pin::new_unchecked(self) }));
 
             // The subscriber was reconstructed from a raw pointer and does not have
             // true ownership. We must `forget` it to prevent its destructor from
