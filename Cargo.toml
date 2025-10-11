@@ -7,7 +7,7 @@ repository = "https://github.com/FuuuOverclocking/eventp"
 authors = ["Fuu g.for.xyz@gmail.com"]
 keywords = ["epoll", "event", "event-loop", "linux", "event-manager"]
 description = """
-A high-performance Linux event loop library built on epoll with type-safe interest registration and flexible event handling
+Safe Rust abstraction over Linux's `epoll`, offering a true zero-cost event dispatch mechanism.
 """
 
 [dependencies]
@@ -24,3 +24,6 @@ remote-endpoint = ["dep:oneshot"]
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[profile.release]
+debug = true
