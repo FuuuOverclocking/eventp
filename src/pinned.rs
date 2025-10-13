@@ -12,6 +12,12 @@ use crate::{EventpOps, EventpOpsAdd, Interest};
 /// allowing you to add, modify, and delete subscribers just like an [Eventp](crate::Eventp).
 pub struct Pinned<'a, Ep>(pub Pin<&'a mut Ep>);
 
+impl<'a, Ep> Pinned<'a, Ep> {
+    pub fn as_mut(&mut self) -> Pinned<'_, Ep> {
+        Pinned(self.0.as_mut())
+    }
+}
+
 impl<'a, Ep: EventpOps> EventpOpsAdd<Ep> for Pinned<'a, Ep> {
     fn add(&mut self, subscriber: ThinBoxSubscriber<Ep>) -> io::Result<()> {
         unsafe { self.0.as_mut().get_unchecked_mut().add(subscriber) }

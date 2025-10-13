@@ -116,12 +116,11 @@ impl<Ep> HasInterest for Subscriber<Ep> {
 }
 
 impl<Ep: EventpOps> Handler<Ep> for Subscriber<Ep> {
-    fn handle(&mut self, _event: Event, eventp: Pinned<'_, Ep>) {
+    fn handle(&mut self, _event: Event, mut eventp: Pinned<'_, Ep>) {
         let _ = self.eventfd.read();
-        let mut eventp = eventp.0;
 
         while let Ok(f) = self.rx.try_recv() {
-            (f)(Pinned(eventp.as_mut()))
+            (f)(eventp.as_mut())
         }
     }
 }
