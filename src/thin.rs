@@ -2,7 +2,7 @@
 
 use std::alloc::{self, Layout};
 use std::marker::PhantomData;
-use std::mem;
+use std::mem::{self, size_of};
 use std::ops::{Deref, DerefMut};
 use std::os::fd::AsRawFd;
 use std::ptr::{self, NonNull};

@@ -1,5 +1,7 @@
 //! Safe Rust abstraction over Linux's `epoll`, offering a true zero-cost event dispatch mechanism.
 //!
+//! *Minimum supported Rust version: 1.71.0*
+//!
 //! # Motivation
 //!
 //! `epoll` allows the user to associate a custom `u64` with a file descriptor (`fd`) when adding it.
@@ -317,7 +319,8 @@ impl EventpOpsAdd<Self> for Eventp {
         // while it is being executed.
         if let Some(handling) = &self.handling {
             if handling.fd == raw_fd {
-                return Err(io::Error::other(
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
                     "cannot replace the subscriber of itself at running",
                 ));
             }

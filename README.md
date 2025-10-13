@@ -10,6 +10,8 @@ Safe Rust abstraction over Linux's `epoll`, offering a true zero-cost event disp
 - [Technical](https://docs.rs/eventp/latest/eventp/_technical/index.html)
 - [Technical (中文)](https://docs.rs/eventp/latest/eventp/_technical_zh/index.html)
 
+*Minimum supported Rust version: 1.71.0*
+
 ## Quick start
 
 ```sh

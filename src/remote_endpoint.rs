@@ -136,13 +136,23 @@ macro_rules! call_variant {
                 let _ = tx.send($f(ep));
             }))
             .map_err(|_| {
-                io::Error::other("cannot call because `remote_endpoint::Subscriber` dropped")
+                io::Error::new(
+                    io::ErrorKind::Other,
+                    "cannot call because `remote_endpoint::Subscriber` dropped",
+                )
             })?;
         $self.eventfd.write(1).map_err(io::Error::from)?;
 
-        $rx_expr
-            .map_err(|_| io::Error::other("cannot recv from epoll thread because tx dropped"))
-            .flatten()
+        let result = $rx_expr.map_err(|_| {
+            io::Error::new(
+                io::ErrorKind::Other,
+                "cannot recv from epoll thread because tx dropped",
+            )
+        });
+        match result {
+            Ok(inner) => inner,
+            Err(e) => Err(e),
+        }
     }};
 }
 
@@ -221,7 +231,10 @@ impl<Ep> RemoteEndpoint<Ep> {
         F: 'static + FnOnce(Pinned<'_, Ep>) + Send,
     {
         self.tx.send(Box::new(f)).map_err(|_| {
-            io::Error::other("cannot call because `remote_endpoint::Subscriber` dropped")
+            io::Error::new(
+                io::ErrorKind::Other,
+                "cannot call because `remote_endpoint::Subscriber` dropped",
+            )
         })?;
         self.eventfd.write(1).map_err(io::Error::from)?;
 
