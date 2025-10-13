@@ -254,10 +254,17 @@ impl Eventp {
         let buf = &buf[..n];
 
         // Enter the 'handling' state to manage re-entrancy safely.
-        self.handling = Some(Handling {
-            fd: -1, // Invalid fd, will be updated for each event.
-            to_remove: vec![],
-        });
+        // SAFETY: self.handling is valid for writing and properly aligned,
+        // and we know that it is previously None so does not need to be dropped.
+        unsafe {
+            ptr::write(
+                &mut self.handling as *mut _,
+                Some(Handling {
+                    fd: -1, // Invalid fd, will be updated for each event.
+                    to_remove: vec![],
+                }),
+            )
+        };
 
         for ev in buf {
             // Reconstruct the subscriber pointer from the `epoll` event data.
