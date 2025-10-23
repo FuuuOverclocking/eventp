@@ -116,6 +116,7 @@ pub mod _technical_zh {
     #![doc = include_str!("../docs/technical.zh.md")]
 }
 
+use std::hint;
 use std::marker::PhantomPinned;
 use std::mem::{self, transmute, MaybeUninit};
 use std::os::fd::{AsRawFd, RawFd};
@@ -156,7 +157,7 @@ pub struct Eventp {
 
 struct Handling {
     fd: RawFd,
-    to_remove: Vec<RawFd>,
+    deferred_remove: Vec<RawFd>,
 }
 
 impl Default for Eventp {
@@ -254,17 +255,17 @@ impl Eventp {
         let buf = &buf[..n];
 
         // Enter the 'handling' state to manage re-entrancy safely.
-        // SAFETY: self.handling is valid for writing and properly aligned,
-        // and we know that it is previously None so does not need to be dropped.
-        unsafe {
-            ptr::write(
-                &mut self.handling as *mut _,
-                Some(Handling {
+        if self.handling.is_some() {
+            // Avoid unnecessary drop check.
+            // SAFETY: `self.handling` is guaranteed to be `Some` at the start of this function,
+            //         and epoll_wait will not change it.
+            unsafe { hint::unreachable_unchecked() }
+        } else {
+            self.handling = Some(Handling {
                     fd: -1, // Invalid fd, will be updated for each event.
-                    to_remove: vec![],
-                }),
-            )
-        };
+                deferred_remove: vec![],
+            });
+        }
 
         for ev in buf {
             // Reconstruct the subscriber pointer from the `epoll` event data.
@@ -296,7 +297,7 @@ impl Eventp {
         let handling = unsafe { self.handling.take().unwrap_unchecked() };
 
         // Process all deferred removals now that iteration is complete.
-        for fd in handling.to_remove {
+        for fd in handling.deferred_remove {
             // The subscriber's memory will be freed when its `ThinBoxSubscriber` is dropped from the map.
             self.registered.remove(&fd);
         }
@@ -423,7 +424,7 @@ impl EventpOps for Eventp {
         // Handle re-entrancy. If we are in the middle of event dispatching,
         // defer the removal from our map to avoid iterator invalidation.
         if let Some(handling) = &mut self.handling {
-            handling.to_remove.push(fd);
+            handling.deferred_remove.push(fd);
         } else {
             // Otherwise, it's safe to remove immediately.
             self.registered.remove(&fd);
