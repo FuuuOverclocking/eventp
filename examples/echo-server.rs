@@ -73,7 +73,7 @@ fn on_data(
 
 #[cfg_attr(feature = "mock", mockall::automock(type Stream = MockStream;))]
 trait Accept {
-    type Stream: Read + Write + AsFd;
+    type Stream: Read + Write + AsFd + 'static;
 
     fn accept(&self) -> io::Result<(Self::Stream, SocketAddr)>;
 }

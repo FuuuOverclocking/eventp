@@ -14,7 +14,7 @@ use crate::Interest;
 ///
 /// [`Eventp`]: crate::Eventp
 /// [`MockEventp`]: crate::MockEventp
-pub trait EventpOps: EventpOpsAdd<Self> + Sized {
+pub trait EventpOps: EventpOpsAdd<Self> + Sized + 'static {
     fn modify(&mut self, fd: RawFd, interest: Interest) -> io::Result<()>;
     fn delete(&mut self, fd: RawFd) -> io::Result<()>;
 }

@@ -18,11 +18,13 @@ use std::cell::Cell;
 use std::io;
 use std::os::fd::AsFd;
 
+use downcast_rs::Downcast;
+
 use crate::thin::ThinBoxSubscriber;
 use crate::{Event, EventpOps, EventpOpsAdd, Interest, Pinned};
 
 /// See [module level docs](self) for more information.
-pub trait Subscriber<Ep: EventpOps>: AsFd + HasInterest + Handler<Ep> {
+pub trait Subscriber<Ep: EventpOps>: AsFd + HasInterest + Handler<Ep> + Downcast {
     fn register_into<R>(self, eventp: &mut R) -> io::Result<()>
     where
         Self: Sized,
@@ -34,7 +36,7 @@ pub trait Subscriber<Ep: EventpOps>: AsFd + HasInterest + Handler<Ep> {
 
 impl<S, Ep> Subscriber<Ep> for S
 where
-    S: AsFd + HasInterest + Handler<Ep>,
+    S: AsFd + HasInterest + Handler<Ep> + Downcast,
     Ep: EventpOps,
 {
 }

@@ -12,6 +12,7 @@ Safe Rust abstraction over Linux's `epoll`, offering a true zero-cost event disp
 """
 
 [dependencies]
+downcast-rs = "2.0.2"
 libc = "0.2"
 mockall = { version = "0.13", optional = true }
 nix = { version = "0.30", features = ["event"] }

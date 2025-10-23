@@ -191,19 +191,9 @@ impl Eventp {
         })
     }
 
-    /// Returns a shared reference to the inner `Epoll` instance.
-    pub fn inner(&self) -> &Epoll {
-        &self.epoll
-    }
-
-    /// Returns a mutable reference to the inner `Epoll` instance.
-    pub fn inner_mut(&mut self) -> &mut Epoll {
-        &mut self.epoll
-    }
-
-    /// Consumes the `Eventp`, returning the inner `Epoll` instance.
-    pub fn into_inner(self) -> Epoll {
-        self.epoll
+    /// Consumes the `Eventp`, returning the inner `Epoll` instance and hash map.
+    pub fn into_inner(self) -> (Epoll, FxHashMap<RawFd, ThinBoxSubscriber<Eventp>>) {
+        (self.epoll, self.registered)
     }
 
     /// Runs the event loop indefinitely, blocking until an error occurs.
@@ -262,7 +252,7 @@ impl Eventp {
             unsafe { hint::unreachable_unchecked() }
         } else {
             self.handling = Some(Handling {
-                    fd: -1, // Invalid fd, will be updated for each event.
+                fd: -1, // Invalid fd, will be updated for each event.
                 deferred_remove: vec![],
             });
         }
@@ -313,25 +303,19 @@ impl EventpOpsAdd<Self> for Eventp {
     /// with the underlying `epoll` instance. The subscriber's thin pointer is stored
     /// in the `epoll` event data for zero-cost dispatch.
     ///
-    /// If a subscriber with the same file descriptor already exists, it will be replaced.
+    /// # Errors
     ///
-    /// # Re-entrancy
-    ///
-    /// This method is safe to call from within an event handler. However, a handler
-    /// cannot replace its own subscriber while it is being executed. Attempting to do so
-    /// will result in an `io::Error`.
+    /// If a subscriber with the same fd already exists, an error is returned. 为了替换它,
+    /// 你需要先移除再添加. 但是注意: 在 handler 内部调用 delete 时, fd 会立刻从 epoll 的监听列表移除,
+    /// 但由于 Subscriber 的移除会被 defer 到当前批次事件处理结束, handler 接着调用 add 仍然会失败.
     fn add(&mut self, subscriber: ThinBoxSubscriber<Self>) -> io::Result<()> {
         let raw_fd = subscriber.as_fd().as_raw_fd();
 
-        // Re-entrancy check: prevent a handler from replacing its own subscriber
-        // while it is being executed.
-        if let Some(handling) = &self.handling {
-            if handling.fd == raw_fd {
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    "cannot replace the subscriber of itself at running",
-                ));
-            }
+        if self.registered.contains_key(&raw_fd) {
+            return Err(io::Error::new(
+                io::ErrorKind::AlreadyExists,
+                "subscriber with same fd already registered",
+            ));
         }
 
         let interest = subscriber.interest().get();
