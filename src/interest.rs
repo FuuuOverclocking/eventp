@@ -73,7 +73,7 @@ impl Interest {
     /// Stream socket peer closed connection, or shut down writing half of connection.
     /// (This flag is especially useful for writing simple code to detect peer shutdown
     /// when using edge-triggered monitoring.)
-    pub const fn rdhup(self) -> Self {
+    pub const fn read_hangup(self) -> Self {
         self.add(EpollFlags::EPOLLRDHUP)
     }
 
@@ -81,7 +81,7 @@ impl Interest {
     ///
     /// There is an exceptional condition on the file descriptor. See the discussion of
     /// POLLPRI in poll(2).
-    pub const fn pri(self) -> Self {
+    pub const fn priority(self) -> Self {
         self.add(EpollFlags::EPOLLPRI)
     }
 
@@ -163,12 +163,12 @@ impl Interest {
     }
 
     /// Removes interest in the `EPOLLRDHUP` event.
-    pub const fn remove_rdhup(self) -> Self {
+    pub const fn remove_read_hangup(self) -> Self {
         self.remove(EpollFlags::EPOLLRDHUP)
     }
 
     /// Removes interest in priority events.
-    pub const fn remove_pri(self) -> Self {
+    pub const fn remove_priority(self) -> Self {
         self.remove(EpollFlags::EPOLLPRI)
     }
 
