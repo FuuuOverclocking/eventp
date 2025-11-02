@@ -191,19 +191,9 @@ impl Eventp {
         })
     }
 
-    /// Returns a shared reference to the inner `Epoll` instance.
-    pub fn inner(&self) -> &Epoll {
-        &self.epoll
-    }
-
-    /// Returns a mutable reference to the inner `Epoll` instance.
-    pub fn inner_mut(&mut self) -> &mut Epoll {
-        &mut self.epoll
-    }
-
-    /// Consumes the `Eventp`, returning the inner `Epoll` instance.
-    pub fn into_inner(self) -> Epoll {
-        self.epoll
+    /// Consumes the `Eventp`, returning the inner `Epoll` instance and hash map.
+    pub fn into_inner(self) -> (Epoll, FxHashMap<RawFd, ThinBoxSubscriber<Eventp>>) {
+        (self.epoll, self.registered)
     }
 
     /// Runs the event loop indefinitely, blocking until an error occurs.
