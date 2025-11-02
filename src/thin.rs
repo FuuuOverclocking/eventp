@@ -144,6 +144,18 @@ impl<Ep: EventpOps> DerefMut for ThinBoxSubscriber<Ep> {
     }
 }
 
+impl<Ep: EventpOps> AsRef<dyn Subscriber<Ep>> for ThinBoxSubscriber<Ep> {
+    fn as_ref(&self) -> &(dyn Subscriber<Ep> + 'static) {
+        self.deref()
+    }
+}
+
+impl<Ep: EventpOps> AsMut<dyn Subscriber<Ep>> for ThinBoxSubscriber<Ep> {
+    fn as_mut(&mut self) -> &mut (dyn Subscriber<Ep> + 'static) {
+        self.deref_mut()
+    }
+}
+
 impl<Ep: EventpOps> Drop for ThinBoxSubscriber<Ep> {
     fn drop(&mut self) {
         struct DropGuard<Ep: EventpOps> {
