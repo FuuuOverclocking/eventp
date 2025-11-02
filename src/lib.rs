@@ -65,7 +65,7 @@
 //!
 //! -   [`tri_subscriber`]: The helper subscriber constructed by the builder-like API starting from
 //!     [`interest()`], where is the **recommended** API entry point.
-//! -   `remote_endpoint` <span class="stab portability" title="Available on crate feature `remote-endpoint` only"><code>remote-endpoint</code></span>:
+//! -   [`remote_endpoint()`] <span class="stab portability" title="Available on crate feature `remote-endpoint` only"><code>remote-endpoint</code></span>:
 //!     A remote control for an `Eventp` instance running on another thread, allows sending closures
 //!     to the `Eventp` thread to be executed.
 //!
@@ -116,12 +116,11 @@ pub mod _technical_zh {
     #![doc = include_str!("../docs/technical.zh.md")]
 }
 
-use std::hint;
 use std::marker::PhantomPinned;
 use std::mem::{self, transmute, MaybeUninit};
 use std::os::fd::{AsRawFd, RawFd};
 use std::pin::Pin;
-use std::{io, ptr};
+use std::{hint, io, ptr};
 
 use rustc_hash::FxHashMap;
 
@@ -252,7 +251,7 @@ impl Eventp {
             unsafe { hint::unreachable_unchecked() }
         } else {
             self.handling = Some(Handling {
-                    fd: -1, // Invalid fd, will be updated for each event.
+                fd: -1, // Invalid fd, will be updated for each event.
                 deferred_remove: vec![],
             });
         }
@@ -303,25 +302,21 @@ impl EventpOpsAdd<Self> for Eventp {
     /// with the underlying `epoll` instance. The subscriber's thin pointer is stored
     /// in the `epoll` event data for zero-cost dispatch.
     ///
-    /// If a subscriber with the same file descriptor already exists, it will be replaced.
+    /// # Errors
     ///
-    /// # Re-entrancy
+    /// Returns an error when `epoll_ctl(EPOLL_CTL_ADD, ..)` fails.
     ///
-    /// This method is safe to call from within an event handler. However, a handler
-    /// cannot replace its own subscriber while it is being executed. Attempting to do so
-    /// will result in an `io::Error`.
+    /// Note: A delete operation called during handler execution will be **deferred**
+    /// until the current batch of event processing is complete. At this point, continuing
+    /// to call `add` will result in an `AlreadyExists` error.
     fn add(&mut self, subscriber: ThinBoxSubscriber<Self>) -> io::Result<()> {
         let raw_fd = subscriber.as_fd().as_raw_fd();
 
-        // Re-entrancy check: prevent a handler from replacing its own subscriber
-        // while it is being executed.
-        if let Some(handling) = &self.handling {
-            if handling.fd == raw_fd {
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    "cannot replace the subscriber of itself at running",
-                ));
-            }
+        if self.registered.contains_key(&raw_fd) {
+            return Err(io::Error::new(
+                io::ErrorKind::AlreadyExists,
+                "subscriber with same fd already registered",
+            ));
         }
 
         let interest = subscriber.interest().get();
@@ -352,8 +347,7 @@ impl EventpOps for Eventp {
     ///
     /// # Errors
     ///
-    /// Returns an `io::Error` with `ErrorKind::NotFound` if no subscriber is registered
-    /// for the given `fd`.
+    /// Returns an `NotFound` error if no subscriber is registered for the given `fd`.
     fn modify(&mut self, fd: RawFd, interest: Interest) -> io::Result<()> {
         let subscriber = self
             .registered
