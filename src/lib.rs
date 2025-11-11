@@ -9,7 +9,7 @@
 //! I've rarely seen it used correctly. Instead, it's often used to store things like the `fd`
 //! itself, a `token` ([mio](https://docs.rs/mio/latest/mio/)), or a `subscriber id`
 //! ([event_manager](https://docs.rs/event-manager/latest/event_manager/)).
-//! This introduces unnecessary overhead of a branch instruction, or even one or two `HashMap` lookups.
+//! This introduces unnecessary overhead of branch instructions, or even several `HashMap` lookups.
 //!
 //! This is often due to the challenges of safely managing ownership and fat pointers in Rust when
 //! interfacing with pointer-based C APIs. This crate aims to demonstrate how to leverage the Rust
@@ -65,7 +65,7 @@
 //!
 //! -   [`tri_subscriber`]: The helper subscriber constructed by the builder-like API starting from
 //!     [`interest()`], where is the **recommended** API entry point.
-//! -   [`remote_endpoint()`] <span class="stab portability" title="Available on crate feature `remote-endpoint` only"><code>remote-endpoint</code></span>:
+//! -   [`mod@remote_endpoint`]: <span class="stab portability" title="Available on crate feature `remote-endpoint` only"><code>remote-endpoint</code></span>
 //!     A remote control for an `Eventp` instance running on another thread, allows sending closures
 //!     to the `Eventp` thread to be executed.
 //!

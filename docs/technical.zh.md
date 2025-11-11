@@ -29,7 +29,7 @@ fn handler(myself: &mut Subscriber, reactor: &mut Reactor) {
 ![event-manager](https://raw.githubusercontent.com/FuuuOverclocking/eventp/refs/heads/main/docs/images/event-manager.svg)
 
 这样, 两个可变引用就可以分别取自 `EventManager` (中的 epoll 部分) 和 `Subscriber` 了, 解决了问题.
-然而代价却是对于每个触发的事件, 都要查询两次 `HashMap`.
+然而代价却是对于每个触发的事件, 都要查询 3 次 `HashMap`.
 
 更糟的是, 它的数据结构选取了 `std::collections::HashMap`. 这是一个使用了抗 DDOS 哈希算法的实现, 在 key 为来自 OS
 的 fd 时, 失去了用武之地, 反而拖慢了速度.

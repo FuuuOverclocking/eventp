@@ -1,3 +1,48 @@
+//! Provides a mechanism for cross-thread communication with an `Eventp` event loop.
+//!
+//! This module allows threads to safely queue closures for execution on the `Eventp`
+//! thread. It is useful for managing I/O resources or other state owned by the
+//! event loop from external threads.
+//!
+//! # How It Works
+//!
+//! The [`remote_endpoint()`] function creates a connected pair:
+//! - A [`Subscriber`]: An event handler that is registered with the `Eventp` instance.
+//!   It listens on an `eventfd` for notifications.
+//! - A [`RemoteEndpoint`]: A cloneable "handle" that can be sent to other threads.
+//!
+//! When a method like [`RemoteEndpoint::call_blocking`] is called, it sends a closure
+//! over an MPSC channel to the `Subscriber` and then writes to the `eventfd` to wake
+//! up the event loop. The `Subscriber`'s handler then drains the channel and executes
+//! the received closures.
+//!
+//! # Examples
+//!
+//! ```
+//! # use std::io;
+//! use eventp::{Eventp, EventpOps, remote_endpoint};
+//! use eventp::remote_endpoint::RemoteEndpoint;
+//!
+//! # fn main() -> io::Result<()> {
+//! let mut eventp = Eventp::default();
+//! // Create the pair and register the subscriber part into the event loop.
+//! let endpoint = remote_endpoint()?.register_into(&mut eventp)?;
+//!
+//! // Now, the endpoint can be cloned and sent to other threads.
+//! let endpoint_for_thread = endpoint.clone();
+//! # Ok(()) }
+//!
+//! // In another thread, you can use the endpoint to interact with the Eventp loop.
+//! async fn thread_main(endpoint: RemoteEndpoint<impl EventpOps>) -> io::Result<()> {
+//!     endpoint.call_blocking_async(|mut eventp| {
+//!         let mysterious_fd = 42;
+//!         eventp.delete(mysterious_fd)
+//!     }).await?;
+//!
+//!     Ok(())
+//! }
+//! ```
+
 use std::cell::Cell;
 use std::io;
 use std::os::fd::{AsFd, BorrowedFd};
@@ -12,35 +57,9 @@ use crate::{interest, Event, EventpOps, EventpOpsAdd, Interest, Pinned};
 
 type BoxFn<Ep> = Box<dyn FnOnce(Pinned<Ep>) + Send>;
 
-/// Creates a [`RemoteEndpoint`] and [`Subscriber`] pair.
+/// Creates a [`Pair`] of [`RemoteEndpoint`] and [`Subscriber`].
 ///
-/// The [`Subscriber`] is then typically registered into an `Eventp` instance, while
-/// the [`RemoteEndpoint`] can be cloned and sent to other threads. Allows those
-/// threads to queue functions to be executed on the `Eventp` thread.
-///
-/// # Examples
-///
-/// ```
-/// # use std::io;
-/// use eventp::{Eventp, EventpOps, remote_endpoint};
-/// use eventp::remote_endpoint::RemoteEndpoint;
-///
-/// # fn main() -> io::Result<()> {
-/// let mut eventp = Eventp::default();
-/// let endpoint = remote_endpoint()?.register_into(&mut eventp)?;
-/// // Next, clone and send to other threads.
-/// # Ok(()) }
-///
-/// // In another thread ..
-/// async fn thread_main(endpoint: RemoteEndpoint<impl EventpOps>) -> io::Result<()> {
-///     endpoint.call_blocking_async(|mut eventp| {
-///         let mysterious_fd = 42;
-///         eventp.delete(mysterious_fd)
-///     }).await?;
-///
-///     Ok(())
-/// }
-/// ```
+/// For more information, see the [mod-level documentation](self).
 pub fn remote_endpoint<Ep>() -> io::Result<Pair<Ep>> {
     let eventfd = EventFd::from_flags(EfdFlags::EFD_CLOEXEC | EfdFlags::EFD_NONBLOCK)
         .map_err(io::Error::from)?;
@@ -61,7 +80,7 @@ pub fn remote_endpoint<Ep>() -> io::Result<Pair<Ep>> {
     })
 }
 
-/// A pair of [`Subscriber`] and [`RemoteEndpoint`], nothing strange.
+/// Just a pair of [`Subscriber`] and [`RemoteEndpoint`], nothing strange.
 pub struct Pair<Ep> {
     pub subscriber: Subscriber<Ep>,
     pub endpoint: RemoteEndpoint<Ep>,
