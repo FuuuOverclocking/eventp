@@ -22,8 +22,16 @@ use crate::{Event, EventpOps, Interest, Pinned};
 ///
 /// It is rarely constructed manually.
 pub struct TriSubscriber<Fd, Args, F> {
+    /// The file descriptor being watched.
     pub fd: Fd,
+
+    /// The set of I/O readiness events this subscriber is interested in.
+    ///
+    /// Wrapped in a `Cell` so that handlers can adjust the interest in place
+    /// without needing `&mut` access to the subscriber.
     pub interest: Cell<Interest>,
+
+    /// The closure invoked when one of the interested events fires.
     pub handler: FnHandler<Args, F>,
 }
 

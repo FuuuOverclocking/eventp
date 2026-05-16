@@ -1,6 +1,13 @@
-//! Safe Rust abstraction over Linux's `epoll`, offering a true zero-cost event dispatch mechanism.
+//! Safe Rust abstraction over Linux epoll, offering a truly zero-cost event dispatch mechanism.
 //!
 //! *Minimum supported Rust version: 1.71.0*
+//!
+//! # Platform support
+//!
+//! Linux only, on 64-bit targets. Non-Linux and non-64-bit platforms are
+//! rejected at compile time.
+//!
+//! Tested in CI on `x86_64` and `aarch64`.
 //!
 //! # Motivation
 //!
@@ -9,7 +16,7 @@
 //! I've rarely seen it used correctly. Instead, it's often used to store things like the `fd`
 //! itself, a `token` ([mio](https://docs.rs/mio/latest/mio/)), or a `subscriber id`
 //! ([event_manager](https://docs.rs/event-manager/latest/event_manager/)).
-//! This introduces unnecessary overhead of a branch instruction, or even one or two `HashMap` lookups.
+//! This bloats the code, and usually introduces unnecessary overhead of several `HashMap` lookups.
 //!
 //! This is often due to the challenges of safely managing ownership and fat pointers in Rust when
 //! interfacing with pointer-based C APIs. This crate aims to demonstrate how to leverage the Rust
@@ -19,44 +26,45 @@
 //!
 //! # Examples
 //!
-//! See a full example with a demo of writing unit tests on GitHub:
-//! [examples/echo-server.rs](https://github.com/FuuuOverclocking/eventp/blob/main/examples/echo-server.rs).
-//!
 //! ```rust
 //! # use std::io;
-//! use eventp::{interest, tri_subscriber::WithHandler, Eventp, Subscriber};
+//! use eventp::{tri_subscriber::WithHandler, Eventp, Subscriber};
 //! use nix::sys::eventfd::EventFd;
 //!
 //! fn thread_main(eventfd: EventFd) -> io::Result<()> {
-//!     let mut eventp = Eventp::default();
-//!     interest()
-//!         .read()
-//!         .with_fd(eventfd)
-//!         .with_handler(on_eventfd)
-//!         .register_into(&mut eventp)?;
+//!     let mut reactor = Eventp::default();
 //!
-//!     eventp.run_forever()
+//!     eventp::interest()                  // Create an empty interest set.
+//!         .read()                         // Add interest in readable events.
+//!         .with_fd(eventfd)               // (fd, interest)
+//!         .with_handler(on_eventfd)       // (fd, interest, handler) -> a subscriber
+//!         .register_into(&mut reactor)?;  // Register the subscriber into the reactor.
+//!
+//!     reactor.run_forever()
 //! }
 //!
 //! fn on_eventfd(
 //!     eventfd: &mut EventFd,
 //!     // Other available parameters: Interest, Event, Pinned<'_, impl EventpOps>
 //! ) {
-//!     // do somethings...
+//!     let _ = eventfd.read();
+//!     println!("eventfd triggered");
 //! }
 //! ```
 //!
-//! The `with_handler` method supports a form of dependency injection for the handler function.
-//! You can define a handler that accepts only the parameters it needs, in any order. See the
-//! [`tri_subscriber`] module for more details.
+//! The handler function here supports dependency injection. That means, you can put only the
+//! parameters you need in the handler, in any order. See the [`tri_subscriber`] module for details.
+//!
+//! Please check this full example with unit tests to learn the best practices:
+//! [examples/echo-server.rs](https://github.com/FuuuOverclocking/eventp/blob/main/examples/echo-server.rs).
 //!
 //! # Concepts
 //!
 //! 1.  **The [`Eventp`] Reactor**: The central event loop that manages all I/O sources.
 //! 2.  **The [`Subscriber`]**: A combination of an I/O source (anything that is [`AsFd`](std::os::fd::AsFd)),
 //!     its event [`Interest`] (e.g., readable, writable), and a [`Handler`](subscriber::Handler) function.
-//!     -   [`Interest`] vs [`Event`]: Both wrap [`EpollFlags`]. `Interest` is what you ask the OS to
-//!         monitor (e.g., `EPOLLIN`). `Event` is what the OS reports back (e.g., `EPOLLIN | EPOLLHUP`).
+//!     -   [`Interest`] vs [`Event`]: Both wrap [`EpollFlags`]. [`Interest`] is what you ask the OS to
+//!         monitor (e.g., `EPOLLIN`). [`Event`] is what the OS reports back (e.g., `EPOLLIN | EPOLLHUP`).
 //!         The two sets overlap but are not identical.
 //!
 //! ![subscriber-eventp-relationship](https://raw.githubusercontent.com/FuuuOverclocking/eventp/refs/heads/main/docs/images/subscriber-eventp.svg)
@@ -65,7 +73,7 @@
 //!
 //! -   [`tri_subscriber`]: The helper subscriber constructed by the builder-like API starting from
 //!     [`interest()`], where is the **recommended** API entry point.
-//! -   `remote_endpoint` <span class="stab portability" title="Available on crate feature `remote-endpoint` only"><code>remote-endpoint</code></span>:
+//! -   [`mod@remote_endpoint`]: <span class="stab portability" title="Available on crate feature `remote-endpoint` only"><code>remote-endpoint</code></span>
 //!     A remote control for an `Eventp` instance running on another thread, allows sending closures
 //!     to the `Eventp` thread to be executed.
 //!
@@ -73,19 +81,20 @@
 //!
 //! ![type-hierarchy](https://raw.githubusercontent.com/FuuuOverclocking/eventp/refs/heads/main/docs/images/type-hierarchy.svg)
 //!
-//! To make unit testing easier, this crate provides [`MockEventp`], a mock implementation based on
+//! To make unit testing easier, this crate provides [`MockEventp`] - a mock implementation based on
 //! [mockall], available under the <span class="stab portability" title="Available on crate feature `mock` only"><code>mock</code></span>
-//! feature. Therefore, it's recommended to use the abstract [`EventpOps`] trait in function signatures.
-//! This allows your code to accept both the real `Eventp` and `MockEventp`, making it highly testable.
+//! feature. So, it's recommended to use the abstract [`EventpOps`] trait in the signature of handlers,
+//! which allows your code to accept both the real `Eventp` and `MockEventp`, making it highly testable.
 //!
 //! [`Pinned<'_, impl EventpOps>`](Pinned) is the handle passed to your handler when an event is triggered.
 //! It acts like `&mut impl EventpOps` but prevents operations that could move the underlying Eventp
-//! instance (like `std::mem::replace`), thus ensuring memory safety.
+//! instance (such as `std::mem::replace`), thus ensuring memory safety.
 //!
 //! The diagram also mentions [`EventpOpsAdd`]. You will rarely use this trait directly. It's a helper
 //! trait that allows methods like `register_into()` to accept both types.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![warn(missing_docs)]
 #![deny(rustdoc::broken_intra_doc_links)]
 #![deny(rustdoc::private_intra_doc_links)]
 

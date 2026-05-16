@@ -5,14 +5,27 @@ use std::pin::Pin;
 use crate::thin::ThinBoxSubscriber;
 use crate::{EventpOps, EventpOpsAdd, Interest};
 
-/// This involves some magic. For details on the underlying mechanism, see
-/// [technical](crate::_technical).
+/// A deliberately narrowed view of `Pin<&mut Ep>` exposing only `add`,
+/// `modify`, and `delete`.
 ///
-/// In essence, this can be treated as a `&mut Eventp`,
-/// allowing you to add, modify, and delete subscribers just like an [Eventp](crate::Eventp).
+/// `Eventp` is `!Unpin`, so once it is wrapped in `Pin<&mut _>` safe code can
+/// no longer recover an `&mut Eventp` and use `mem::replace` (or any other
+/// move-out operation) to destroy the loop while a handler is running. This
+/// is the property that lets handlers safely receive a "mutable" view of the
+/// reactor without invalidating the `&mut self` of the in-flight subscriber.
+///
+/// `Pinned` therefore intentionally does **not** behave like a full
+/// `&mut Eventp`: it exposes exactly the three `epoll_ctl`-shaped operations
+/// and nothing else. For the underlying mechanism, see
+/// [technical](crate::_technical).
 pub struct Pinned<'a, Ep>(pub Pin<&'a mut Ep>);
 
 impl<'a, Ep> Pinned<'a, Ep> {
+    /// Reborrows this `Pinned` with a shorter lifetime.
+    ///
+    /// This is the equivalent of [`Pin::as_mut`] for `Pinned`, allowing the
+    /// caller to pass the reactor handle into a sub-call without giving up
+    /// ownership of the outer `Pinned`.
     pub fn as_mut(&mut self) -> Pinned<'_, Ep> {
         Pinned(self.0.as_mut())
     }

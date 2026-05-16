@@ -6,7 +6,7 @@
 
 ## 与 mio, EventManager 的对比
 
-相较于 [mio](https://docs.rs/mio/latest/mio/) (以及更底层的 nix, libc), [EventManager](https://docs.rs/event-manager/latest/event_manager/)
+相较于 [mio](https://docs.rs/mio/latest/mio/) (以及更裸的 nix, libc), [EventManager](https://docs.rs/event-manager/latest/event_manager/)
 添加了一层订阅和事件分发机制. 它能够将事件处理由静态的 `match` 代码结构, 分解为运行时灵活动态的注册修改,
 这很好, 对于大型工程项目非常有帮助.
 
@@ -20,7 +20,7 @@
 ```rust,ignore
 fn handler(myself: &mut Subscriber, reactor: &mut Reactor) {
                    ^^^^^^^^^^^^^^^           ^^^^^^^^^^^^
-                   error: 双重可变引用, 底层来自同一个对象
+                   error: 双重可变引用, Subscriber 是 Reactor 的一部分, 来自同一个对象
 }
 ```
 
@@ -29,10 +29,36 @@ fn handler(myself: &mut Subscriber, reactor: &mut Reactor) {
 ![event-manager](https://raw.githubusercontent.com/FuuuOverclocking/eventp/refs/heads/main/docs/images/event-manager.svg)
 
 这样, 两个可变引用就可以分别取自 `EventManager` (中的 epoll 部分) 和 `Subscriber` 了, 解决了问题.
-然而代价却是对于每个触发的事件, 都要查询两次 `HashMap`.
+然而代价却是对于每个触发的事件, 都要查询 3 次 `HashMap`.
 
-更糟的是, 它的数据结构选取了 `std::collections::HashMap`. 这是一个使用了抗 DDOS 哈希算法的实现, 在 key 为来自 OS
-的 fd 时, 失去了用武之地, 反而拖慢了速度.
+更糟的是, 它的数据结构选取了 `std::collections::HashMap`. 它默认使用 SipHash 1-3 作为哈希算法,
+能够抵抗 HashDos 攻击, 然而我们的 key 是 OS 给出的 fd 小整数, 这就不必要地拖慢了速度.
+
+### 致命隐患: fd 复用导致的事件错投
+
+将 `RawFd` 当作 subscriber 的稳定主键, 还埋下了一个更隐蔽、更危险的问题. POSIX 明确规定,
+[`open(2)`](https://man.archlinux.org/man/open.2.en) 等创建 fd 的系统调用必须返回**当前进程中数值最小的未被使用的 fd**.
+这意味着, 一旦某个 fd 被 `close(2)` 释放, 它的整数值会立刻成为下一次 `open`/`accept`/`socket`/`pipe` 的首选,
+新打开的资源会**复用同一个 `RawFd` 编号**.
+
+考虑这样一个并不少见的时序:
+
+1. subscriber A 持有 `fd = 7`, 已注册到 `EventManager`, 并在它内部的 4 个 HashMap 中各占一席.
+2. A 自己 close 了 `fd = 7`, 但**忘记** (或来不及) 调用 `EventManager::remove_subscriber`.
+3. 进程稍后 `accept` 出一个新的连接, 内核回收 `7` 作为它的 fd, 应用又把它注册成 subscriber B.
+4. epoll 分发事件时, `EventManager` 用 `fd = 7` 查表, 命中 A 的 subscriber id —— 事件被错投到了已经"死了"的 A 身上.
+
+这是一类典型的"幽灵事件". 它的危害有三:
+
+- **静默的逻辑错误**: 编译器无法察觉, 单元测试也极难复现, 通常只在生产环境的高并发场景下偶发翻车.
+- **跨越所有权边界**: 即使 A 的对象本身已经被释放, 只要 `EventManager` 中还残留它的 `RawFd → subscriber id`
+  映射, 就会有事件被路由到错误的处理者上, 甚至可能命中一段被复用的内存.
+- **并非"用户的锅"**: 库的 API 形状鼓励了"先 close fd 再 remove"的写法 (尤其是当 close 由更深层的析构链触发时),
+  把这种细节甩给用户去保证, 是设计的失败.
+
+`eventp` 由于直接将 subscriber 对象的地址塞进 `epoll_event.data`, 路由不依赖 `RawFd` —— 内核回报的就是当年注册时给出的那个对象,
+天然不会发生"事件错投"; 而 `Eventp::delete` 又强制把 epoll 注销和 subscriber 对象的释放绑定在一起,
+连"忘记 remove"的可能性都从 API 上消除了.
 
 ### Insight
 

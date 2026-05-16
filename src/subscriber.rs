@@ -23,6 +23,11 @@ use crate::{Event, EventpOps, EventpOpsAdd, Interest, Pinned};
 
 /// See [module level docs](self) for more information.
 pub trait Subscriber<Ep: EventpOps>: AsFd + HasInterest + Handler<Ep> {
+    /// Boxes `self` into a [`ThinBoxSubscriber`] and registers it with the given reactor.
+    ///
+    /// This is a convenience wrapper around [`EventpOpsAdd::add`] that handles the
+    /// thin-pointer boxing for the caller. Equivalent to
+    /// `eventp.add(ThinBoxSubscriber::new(self))`.
     fn register_into<R>(self, eventp: &mut R) -> io::Result<()>
     where
         Self: Sized,
