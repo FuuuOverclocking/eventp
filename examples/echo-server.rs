@@ -1,54 +1,52 @@
+#![cfg_attr(rustfmt, rustfmt_skip)]
+
 use std::io::{self, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::os::fd::{AsFd, AsRawFd};
 
 use eventp::tri_subscriber::WithHandler;
-use eventp::{interest, Event, Eventp, EventpOps, Interest, Pinned, Subscriber};
+use eventp::{Eventp, EventpOps, Pinned, Subscriber};
 
 // Set up an echo server on port 3000.
-#[rustfmt::skip]
 fn main() -> io::Result<()> {
     let listener = TcpListener::bind("127.0.0.1:3000")?;
     listener.set_nonblocking(true)?;
 
-    let mut eventp = Eventp::default(); // Internally it creates an epoll fd.
-    interest()
+    let mut reactor = Eventp::default();// Internally it creates an epoll fd.
+    eventp::interest()
         .read()                         // Interested in readable events, i.e. new connections.
         .with_fd(listener)
         .with_handler(on_connection)
-        .register_into(&mut eventp)?;
+        .register_into(&mut reactor)?;
 
-    eventp.run_forever()                // Loop: epoll_wait, dispatch event.
+    reactor.run_forever()               // Enter loop, epoll_wait and dispatch event.
 }
 
-#[rustfmt::skip]
 fn on_connection(
     listener: &mut impl Accept,         // Will receive `TcpListener`. To make it testable, we define a trait below.
-    mut eventp: Pinned<impl EventpOps>, // Will receive `Pinned<Eventp>`.
+    mut reactor: Pinned<impl EventpOps>,// Will receive `Pinned<Eventp>`.
 ) {
     let (stream, _) = listener.accept().expect("accept failed");
 
-    interest()
+    eventp::interest()
         .edge_triggered()
         .read()                         // Interested in readable events, edge triggered.
         .with_fd(stream)
         .with_handler(on_data)
-        .register_into(&mut eventp)
-        .expect("add to epoll failed");
+        .register_into(&mut reactor)
+        .unwrap();
 }
 
-#[rustfmt::skip]
 fn on_data(
-    // Rustacean Dependency Injection. Place any parameters you like, in any order.
-    _interest: Interest,                // Previously registered interests.
+    // Rustacean Dependency Injection👇 Place any parameters you like, in any order.
+    _interest: eventp::Interest,        // Previously registered interests.
     mut eventp: Pinned<impl EventpOps>,
-    ev: Event,                          // The triggered event.
+    ev: eventp::Event,                  // The triggered event.
     stream: &mut (impl Read + Write + AsFd),
 ) {
     if ev.is_error() || ev.is_hangup() {
-        eventp
-            .delete(stream.as_fd().as_raw_fd())
-            .expect("delete from epoll failed");
+        eventp.delete(stream.as_fd().as_raw_fd()).unwrap();
+        return;
     }
     if !ev.is_readable() {
         return;
@@ -61,12 +59,10 @@ fn on_data(
                 return;
             }
             Err(_) | Ok(0) => {
-                eventp
-                    .delete(stream.as_fd().as_raw_fd())
-                    .expect("delete from epoll failed");
+                eventp.delete(stream.as_fd().as_raw_fd()).unwrap();
                 return;
             }
-            Ok(n) => stream.write_all(&buf[..n]).expect("write failed"),
+            Ok(n) => stream.write_all(&buf[..n]).unwrap(), // Send buffer omitted.
         }
     }
 }
@@ -111,7 +107,7 @@ mod tests {
     use std::os::fd::BorrowedFd;
 
     use eventp::epoll::EpollFlags;
-    use eventp::{pinned, MockEventp};
+    use eventp::{pinned, MockEventp, Interest};
     use mockall::predicate::*;
 
     use super::*;
