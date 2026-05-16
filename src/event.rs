@@ -20,8 +20,12 @@ impl From<EpollFlags> for Event {
 impl From<&EpollEvent> for Event {
     fn from(value: &EpollEvent) -> Self {
         let ptr = value as *const _ as *const libc::epoll_event;
-        // SAFETY: EpollEvent is a transparent wrapper around libc::epoll_event.
-        Self(EpollFlags::from_bits_retain(unsafe { *ptr }.events as i32))
+        // SAFETY: `nix::sys::epoll::EpollEvent` is a `#[repr(C)]` struct with a
+        // single `libc::epoll_event` field, so it is layout-compatible with
+        // `libc::epoll_event` and a pointer cast between the two is sound.
+        Self(EpollFlags::from_bits_retain(
+            unsafe { *ptr }.events as libc::c_int,
+        ))
     }
 }
 
