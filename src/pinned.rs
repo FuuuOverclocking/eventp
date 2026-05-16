@@ -19,6 +19,7 @@ impl<'a, Ep> Pinned<'a, Ep> {
 }
 
 impl<'a, Ep: EventpOps> EventpOpsAdd<Ep> for Pinned<'a, Ep> {
+    #[doc = include_str!("../docs/eventp-ops.add.md")]
     fn add(&mut self, subscriber: ThinBoxSubscriber<Ep>) -> io::Result<()> {
         unsafe { self.0.as_mut().get_unchecked_mut().add(subscriber) }
     }
@@ -28,10 +29,12 @@ impl<'a, Ep> Pinned<'a, Ep>
 where
     Ep: EventpOps,
 {
+    #[doc = include_str!("../docs/eventp-ops.modify.md")]
     pub fn modify(&mut self, fd: RawFd, interest: Interest) -> io::Result<()> {
         unsafe { self.0.as_mut().get_unchecked_mut().modify(fd, interest) }
     }
 
+    #[doc = include_str!("../docs/eventp-ops.delete.md")]
     pub fn delete(&mut self, fd: RawFd) -> io::Result<()> {
         unsafe { self.0.as_mut().get_unchecked_mut().delete(fd) }
     }
