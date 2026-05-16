@@ -14,8 +14,8 @@ Safe Rust abstraction over Linux's `epoll`, offering a true zero-cost event disp
 [dependencies]
 libc = "0.2"
 mockall = { version = "0.13", optional = true }
-nix = { version = "0.30", features = ["event"] }
-oneshot = { version = "0.1.11", optional = true }
+nix = { version = "0.31", features = ["event"] }
+oneshot = { version = "0.1.12", optional = true }
 rustc-hash = "2"
 
 [features]
