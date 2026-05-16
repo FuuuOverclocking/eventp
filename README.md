@@ -31,10 +31,10 @@ or,
 
 ```toml
 [dependencies]
-eventp = "1.0.0-rc.6"
+eventp = "1.0.0-rc.7"
 
 [dev-dependencies]
-eventp = { version = "1.0.0-rc.6", features = ["mock"] }
+eventp = { version = "1.0.0-rc.7", features = ["mock"] }
 ```
 
 > When writing tests, you may find the `mock` feature makes life much easier :)

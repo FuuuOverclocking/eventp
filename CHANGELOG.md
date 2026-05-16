@@ -3,7 +3,58 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 ---
-## [1.0.0-rc.6](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.5..1.0.0-rc.6) - 2025-10-09
+## [1.0.0-rc.7](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.6..1.0.0-rc.7) - 2026-05-16
+
+### Documentation
+
+- **(readme)** Add CI/codecov badges and platform-support section - ([0acf413](https://github.com/FuuuOverclocking/eventp/commit/0acf4137ba4cae09013618b7b4e47458b93ec8c9)) - Fuu
+- Expand crate-level, `Pinned`, `mock` and zh-technical docs - ([5e4897e](https://github.com/FuuuOverclocking/eventp/commit/5e4897e807bb2056a410fbf52b5e2bbaf8343f9b)) - Fuu
+- Add technical writeup and bench results - ([155569d](https://github.com/FuuuOverclocking/eventp/commit/155569d4da1679fac973b47504189828f6201656)) - Fuu
+
+### Features
+
+- Add `as_mut` for Pinned - ([282cbc3](https://github.com/FuuuOverclocking/eventp/commit/282cbc3fdc110ad01e04986296c978636c01fc75)) - Fuu
+- Impl `AsRef` and `AsMut` for `ThinBoxSubscriber` - ([8d0197b](https://github.com/FuuuOverclocking/eventp/commit/8d0197b0803ff744db51c7d343d74035b56df39a)) - Fuu
+
+### Miscellaneous Chores
+
+- **(deps)** Bump nix to 0.31 and oneshot to 0.1.12 - ([f27d4ca](https://github.com/FuuuOverclocking/eventp/commit/f27d4ca6e58e0c7796799d1b5e7da204d8315518)) - Fuu
+- Update dependencies - ([dcff873](https://github.com/FuuuOverclocking/eventp/commit/dcff8733a51ac56381115c25dbb079920b78be51)) - Fuu
+- Update crate's description - ([9bc700e](https://github.com/FuuuOverclocking/eventp/commit/9bc700e5ee9fb7d6377ab663fa74d5f58a9b210b)) - Fuu
+- Set MSRV and do some adaption - ([6372936](https://github.com/FuuuOverclocking/eventp/commit/6372936b04ca21c8b82e5f9094d6fdec3c11c073)) - Fuu
+- Refine crate description - ([3608185](https://github.com/FuuuOverclocking/eventp/commit/36081855e8835416419bbbeb653be3a3e7b82704)) - Fuu
+
+### Refactoring
+
+- Avoid unnecessary check of epoll flags - ([3b61f57](https://github.com/FuuuOverclocking/eventp/commit/3b61f571ade27ffe0370214a8e3c6cde1b434e0e)) - Fuu
+- Avoid unnecessary drop by `ptr::write` - ([7bde835](https://github.com/FuuuOverclocking/eventp/commit/7bde8359d014e4b8cebac585b8a2893e4983ac0e)) - Fuu
+- Rename `to_remove` and use hint - ([7583148](https://github.com/FuuuOverclocking/eventp/commit/75831489c931421c3da131c0e7b7f7d2e6385f24)) - Fuu
+-  [**breaking**]Rename `rdhup` and `pri` of `Interest` - ([4fbde7c](https://github.com/FuuuOverclocking/eventp/commit/4fbde7c0158c88278708735e42a654cc4d6f1e75)) - Fuu
+-  [**breaking**]Remove `inner` and `inner_mut`, change `into_inner` - ([de070f3](https://github.com/FuuuOverclocking/eventp/commit/de070f37379f3a1b99dc1c3833a0cce306cc17a6)) - Fuu
+-  [**breaking**]Seal `EventpOps`/`EventpOpsAdd` and externalize ops docs - ([8c52721](https://github.com/FuuuOverclocking/eventp/commit/8c52721689589c966023442bc0544ad050409c84)) - Fuu
+- Rework reactor and `ThinBoxSubscriber` - ([bce1611](https://github.com/FuuuOverclocking/eventp/commit/bce1611be6764fd042116e90691a6a69d13f5a74)) - Fuu
+- Rewrite `remote_endpoint` for cleaner cross-thread API - ([938dd32](https://github.com/FuuuOverclocking/eventp/commit/938dd327f912efde7b4f0b8a6573c2825b195470)) - Fuu
+
+### Style
+
+- **(rustfmt)** Drop nightly-only options - ([ffe461a](https://github.com/FuuuOverclocking/eventp/commit/ffe461aa63377c2627f817c042044f135c4402fb)) - Fuu
+
+### Bench
+
+- Compare dispatch vs mio and event-manager - ([586f9ee](https://github.com/FuuuOverclocking/eventp/commit/586f9eea5ddd543428997d4e2135594e5acdc64b)) - Fuu
+- Reformat imports in dispatch.rs - ([77cd638](https://github.com/FuuuOverclocking/eventp/commit/77cd638bc85e62e7ed3f7877ac3a01135f03f506)) - Fuu
+
+### Ci
+
+- Overhaul workflow with msrv, arm64 and coverage jobs - ([a1d722f](https://github.com/FuuuOverclocking/eventp/commit/a1d722f8aa72b62fe4cc03583f437cee3cdf7c31)) - Fuu
+- Pin `vmm-sys-util` to 0.14 in MSRV job - ([56cad20](https://github.com/FuuuOverclocking/eventp/commit/56cad2096e4c6e5a9c8a39790d951145dcb3afb9)) - Fuu
+
+### Example
+
+- Refresh echo-server demo - ([9efb46f](https://github.com/FuuuOverclocking/eventp/commit/9efb46fc792f0f314e4c5c3c1f06d320007df438)) - Fuu
+
+---
+## [1.0.0-rc.6](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.5..v1.0.0-rc.6) - 2025-10-09
 
 ### Documentation
 
