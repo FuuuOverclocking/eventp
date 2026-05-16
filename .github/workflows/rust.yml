@@ -43,6 +43,10 @@ jobs:
       - run: cargo +stable generate-lockfile
         env:
           CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
+      # `vmm-sys-util` 0.15 uses prelude `size_of` (Rust 1.80+) but does not
+      # declare a `rust-version`, so the MSRV-aware resolver cannot fall back
+      # automatically. Pin it to the last 1.71-compatible release.
+      - run: cargo +stable update -p vmm-sys-util --precise 0.14.0
       - run: cargo +1.71 test --no-run --all-features
       - run: cargo +1.71 test --no-run --no-default-features
 
