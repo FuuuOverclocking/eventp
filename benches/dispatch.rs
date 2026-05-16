@@ -34,18 +34,13 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-
-use nix::sys::eventfd::{EfdFlags, EventFd};
-
+use event_manager::{EventManager, EventOps, EventSet, Events, MutEventSubscriber, SubscriberOps};
 use eventp::epoll::{EpollCreateFlags, EpollTimeout};
 use eventp::tri_subscriber::WithHandler;
 use eventp::{Eventp, Subscriber};
-
-use event_manager::{EventManager, EventOps, EventSet, Events, MutEventSubscriber, SubscriberOps};
-
 use mio::unix::SourceFd;
 use mio::{Events as MioEvents, Interest, Poll, Token};
-
+use nix::sys::eventfd::{EfdFlags, EventFd};
 use rustc_hash::FxHashMap;
 
 // ---------- shared fixture ----------
