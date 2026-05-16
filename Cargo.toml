@@ -8,7 +8,7 @@ repository = "https://github.com/FuuuOverclocking/eventp"
 authors = ["Fuu g.for.xyz@gmail.com"]
 keywords = ["epoll", "event", "event-loop", "linux", "event-manager"]
 description = """
-Safe Rust abstraction over Linux's `epoll`, offering a true zero-cost event dispatch mechanism.
+Safe Rust abstraction over Linux epoll, offering a truly zero-cost event dispatch mechanism.
 """
 
 [dependencies]
