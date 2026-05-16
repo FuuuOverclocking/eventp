@@ -18,6 +18,11 @@ nix = { version = "0.31", features = ["event"] }
 oneshot = { version = "0.1.12", optional = true }
 rustc-hash = "2"
 
+[dev-dependencies]
+criterion = { version = "0.5", default-features = false, features = ["html_reports"] }
+event-manager = "0.4"
+mio = { version = "1", features = ["os-poll", "os-ext"] }
+
 [features]
 mock = ["dep:mockall"]
 remote-endpoint = ["dep:oneshot"]
@@ -26,5 +31,13 @@ remote-endpoint = ["dep:oneshot"]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+[[bench]]
+name = "dispatch"
+harness = false
+
 [profile.release]
 debug = true
+
+[profile.bench]
+lto = true
+codegen-units = 1
