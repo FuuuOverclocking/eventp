@@ -14,6 +14,7 @@
 //! a method chain with [`interest()`](crate::interest), which would be simpler and more
 //! testable.
 
+use std::any::Any;
 use std::cell::Cell;
 use std::io;
 use std::os::fd::AsFd;
@@ -22,7 +23,7 @@ use crate::thin::ThinBoxSubscriber;
 use crate::{Event, EventpOps, EventpOpsAdd, Interest, Pinned};
 
 /// See [module level docs](self) for more information.
-pub trait Subscriber<Ep: EventpOps>: AsFd + HasInterest + Handler<Ep> {
+pub trait Subscriber<Ep: EventpOps>: AsFd + HasInterest + Handler<Ep> + Any {
     /// Boxes `self` into a [`ThinBoxSubscriber`] and registers it with the given reactor.
     ///
     /// This is a convenience wrapper around [`EventpOpsAdd::add`] that handles the
@@ -39,7 +40,7 @@ pub trait Subscriber<Ep: EventpOps>: AsFd + HasInterest + Handler<Ep> {
 
 impl<S, Ep> Subscriber<Ep> for S
 where
-    S: AsFd + HasInterest + Handler<Ep>,
+    S: 'static + AsFd + HasInterest + Handler<Ep>,
     Ep: EventpOps,
 {
 }

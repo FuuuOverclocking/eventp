@@ -18,7 +18,7 @@ use crate::Interest;
 ///
 /// [`Eventp`]: crate::Eventp
 /// [`MockEventp`]: crate::MockEventp
-pub trait EventpOps: EventpOpsAdd<Self> + sealed::Sealed + Sized {
+pub trait EventpOps: 'static + EventpOpsAdd<Self> + sealed::Sealed + Sized {
     #[doc = include_str!("../docs/eventp-ops.modify.md")]
     fn modify(&mut self, fd: RawFd, interest: Interest) -> io::Result<()>;
 
