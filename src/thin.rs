@@ -9,6 +9,7 @@ use std::ptr::{self, NonNull};
 
 #[cfg(feature = "mock")]
 use crate::mock::MockEventp;
+use crate::utils::unlikely;
 use crate::{Eventp, EventpOps, Subscriber};
 
 /// Similar to `Box<dyn Subscriber<Ep>>`, but the size of this type is only one usize.
@@ -93,7 +94,7 @@ where
 
         // Move the value into the allocated location. No drop occurs.
         // SAFETY: data_ptr is valid and aligned for writes.
-        unsafe { ret.data_ptr().cast::<T>().write(value) };
+        unsafe { ret.ptr.as_ptr().cast::<T>().write(value) };
 
         ret
     }
@@ -152,7 +153,8 @@ where
         // SAFETY: `src` and `dst` are valid and aligned. Because they are from
         // different allocation, so not overlapped.
         unsafe {
-            ret.data_ptr()
+            ret.ptr
+                .as_ptr()
                 .cast::<u8>()
                 .copy_from_nonoverlapping(value, value_layout.size())
         };
@@ -182,10 +184,6 @@ where
         unsafe { &mut *self.ptr.as_ptr().sub(size_of::<usize>()).cast() }
     }
 
-    fn data_ptr(&mut self) -> *mut () {
-        self.ptr.as_ptr().cast()
-    }
-
     fn is_subscriber_dropped(&self) -> bool {
         *self.raw_fd_ref() == -1
     }
@@ -208,8 +206,8 @@ where
     ///   `raw_fd == -1` after a prior `drop_in_place`/`mark_subscriber_dropped`).
     /// - The caller must respect Rust's aliasing rules: while this reference
     ///   exists, no other mutable reference to the same subscriber may exist.
-    unsafe fn deref_mut(&mut self) -> &mut dyn Subscriber<Ep> {
-        let data_ptr = self.data_ptr();
+    unsafe fn deref(&self) -> &dyn Subscriber<Ep> {
+        let data_ptr = self.ptr.as_ptr().cast();
         let vptr = *self.vptr_ref();
 
         // SAFETY: `data_ptr` and `vptr` were written together in `new` /
@@ -224,18 +222,34 @@ where
         unsafe { &mut *fat_ptr }
     }
 
-    pub(crate) fn try_deref_mut(&mut self) -> Option<&mut dyn Subscriber<Ep>> {
-        // Code from `likely_stable@0.1.3`, since `std::intrinsics::unlikely`
-        // is not stable at this moment.
-        const fn unlikely(b: bool) -> bool {
-            #[allow(clippy::needless_bool)]
-            if (1i32).checked_div(if b { 0 } else { 1 }).is_none() {
-                true
-            } else {
-                false
-            }
-        }
+    /// Same as [`Self::deref()`], but obtains a mutable reference.
+    unsafe fn deref_mut(&mut self) -> &mut dyn Subscriber<Ep> {
+        let data_ptr = self.ptr.as_ptr().cast();
+        let vptr = *self.vptr_ref();
 
+        // SAFETY: `data_ptr` and `vptr` were written together in `new` /
+        // `from_box_dyn`, so reassembling them yields a fat pointer whose layout
+        // matches `*mut dyn Subscriber<Ep>`.
+        let fat_ptr = unsafe {
+            mem::transmute::<(*const (), *const ()), *mut dyn Subscriber<Ep>>((data_ptr, vptr))
+        };
+        // SAFETY: The heap slot is still allocated (it is only freed in `Drop`),
+        // and the caller's `# Safety` contract above guarantees no aliasing
+        // mutable reference exists.
+        unsafe { &mut *fat_ptr }
+    }
+
+    pub(crate) fn try_deref(&self) -> Option<&dyn Subscriber<Ep>> {
+        if unlikely(self.is_subscriber_dropped()) {
+            return None;
+        }
+        // SAFETY: `raw_fd != -1`, so the subscriber has not been dropped in place;
+        // the caller will receive a normal `&mut dyn Subscriber` and is free to
+        // invoke methods on it. Aliasing is enforced by `&mut self`.
+        unsafe { Some(self.deref()) }
+    }
+
+    pub(crate) fn try_deref_mut(&mut self) -> Option<&mut dyn Subscriber<Ep>> {
         if unlikely(self.is_subscriber_dropped()) {
             return None;
         }

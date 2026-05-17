@@ -109,6 +109,7 @@ pub mod remote_endpoint;
 pub mod subscriber;
 pub mod thin;
 pub mod tri_subscriber;
+mod utils;
 
 pub mod epoll {
     //! Re-exports of epoll related types from the [`nix` crate](nix::sys::epoll).
@@ -222,6 +223,18 @@ impl Eventp {
     /// the registry of subscribers, keyed by their raw file descriptor.
     pub fn into_inner(self) -> (Epoll, impl Iterator<Item = ThinBoxSubscriber<Eventp>>) {
         (self.epoll, self.registered.into_values())
+    }
+
+    /// Returns a reference to the subscriber corresponding to the raw fd.
+    pub fn get(&self, raw_fd: &RawFd) -> Option<&dyn Subscriber<Eventp>> {
+        self.registered.get(raw_fd).and_then(|s| s.try_deref())
+    }
+
+    /// Returns a mutable reference to the subscriber corresponding to the raw fd.
+    pub fn get_mut(&mut self, raw_fd: &RawFd) -> Option<&mut dyn Subscriber<Eventp>> {
+        self.registered
+            .get_mut(raw_fd)
+            .and_then(|s| s.try_deref_mut())
     }
 
     /// Runs the event loop until a non-`EINTR` error occurs.
@@ -372,7 +385,7 @@ impl Eventp {
 
 impl EventpOpsAdd<Self> for Eventp {
     #[doc = include_str!("../docs/eventp-ops.add.md")]
-    fn add(&mut self, mut subscriber: ThinBoxSubscriber<Self>) -> io::Result<()> {
+    fn add(&mut self, subscriber: ThinBoxSubscriber<Self>) -> io::Result<()> {
         // Pointer laundering: convert the subscriber's thin pointer into a `usize`
         // so it can be stashed in `epoll_event.data` without a borrow-checker tie.
         // SAFETY: `ThinBoxSubscriber<Self>` consists of a single `NonNull<u8>`
@@ -382,7 +395,7 @@ impl EventpOpsAdd<Self> for Eventp {
         // the value, since we still need to move it into `self.registered`.
         let addr = unsafe { mem::transmute_copy::<_, usize>(&subscriber) };
 
-        let dyn_subscriber = match subscriber.try_deref_mut() {
+        let dyn_subscriber = match subscriber.try_deref() {
             Some(s) => s,
             None => panic!("Subscriber is already dropped"),
         };
