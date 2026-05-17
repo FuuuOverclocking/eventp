@@ -175,7 +175,7 @@ dependencies = [
 
 [[package]]
 name = "eventp"
-version = "1.0.0-rc.7"
+version = "1.0.0"
 dependencies = [
  "criterion",
  "event-manager",

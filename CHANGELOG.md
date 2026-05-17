@@ -3,7 +3,18 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 ---
-## [1.0.0-rc.7](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.6..1.0.0-rc.7) - 2026-05-16
+## [1.0.0](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.7..1.0.0) - 2026-05-17
+
+### Features
+
+- add `get` and `get_mut` methods to `Eventp` - ([ec76efc](https://github.com/FuuuOverclocking/eventp/commit/ec76efc853375833877536466031d245ea70c0e3)) - Fuu
+
+### Refactoring
+
+-  [**breaking**]Add 'static bound to support downcasting - ([e1bb589](https://github.com/FuuuOverclocking/eventp/commit/e1bb5892e0be311ff6cead7b2f15c2c4cbdda1d9)) - Fuu
+
+---
+## [1.0.0-rc.7](https://github.com/FuuuOverclocking/eventp/compare/v1.0.0-rc.6..v1.0.0-rc.7) - 2026-05-16
 
 ### Documentation
 
